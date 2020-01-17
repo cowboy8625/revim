@@ -1,5 +1,5 @@
 [package]
-name = "ReVim"
+name = "revim"
 version = "0.0.1"
 authors = ["cowboy8625 <cowboy8625@yahoo.com>"]
 edition = "2018"
