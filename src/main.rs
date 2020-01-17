@@ -4,6 +4,7 @@ use crossterm::{
     queue,
     style::Color::AnsiValue,
     style::{
+        style,
         Color, Print, ResetColor, SetBackgroundColor,
         SetForegroundColor, Attribute, Styler, StyledContent
     },
@@ -17,6 +18,11 @@ use terminal_size::{terminal_size, Height, Width};
 use std::fs::File;
 use ropey::Rope;
 
+
+/*** constants ***/
+
+const BLACK: u8 = 0;
+const YELLOW: u8 = 190;
 
 /*** data ***/
 
@@ -75,84 +81,83 @@ impl Vector {
     }
 }
 
-#[allow(dead_code)]
-struct StatusBar {
-    loc: Vector,
-    loc_mode: Vector,
-    loc_ft: Vector,
-    loc_loc: Vector,
-    status_imode: BfgColor,
-    status_nmode: BfgColor,
-    status_cmode: BfgColor,
-    status_loc: BfgColor,
-    status_ft: BfgColor,
+struct StatusElement {
+    row: i16,
+    start: i16,
+    msg: String,
+    len: usize,
+    fg: u8,
+    bg: u8,
 }
 
-#[allow(dead_code)]
-impl StatusBar {
-    fn new(x: i16, y: i16) -> Self {
+impl StatusElement {
+    fn new(row: i16, msg: String, fg: u8, bg: u8) -> Self {
         Self {
-            /*** Location ***/
-            loc: Vector::new(x, y),
-
-            /*** Location and color of curser ***/
-            loc_loc: Vector::new(x, y),
-            status_loc: BfgColor{fg: Color::Black, bg: Color::Yellow},
-
-            /*** Location and color of Modes ***/
-            loc_mode: Vector::new(0, y),
-            status_imode: BfgColor{fg: Color::Black, bg: Color::Cyan},
-            status_nmode: BfgColor{fg: Color::Black, bg: Color::Yellow},
-            status_cmode: BfgColor{fg: Color::Black, bg: Color::Magenta},
-
-            /*** Location and color of File Type ***/
-            loc_ft: Vector::new(x, y),
-            status_ft: BfgColor{fg: Color::Cyan, bg: Color::DarkGrey},
+            row,
+            start: 0,
+            len: msg.len(),
+            msg,
+            fg,
+            bg,
         }
     }
-    fn render_status_bar(&self, mode: &Mode) {
-        self.status_mode(mode);
-        //self.status_loc(mode);
-        //self.status_file_type(mode);
-    }
 
-    fn status_mode(&self, mode: &Mode) {
-        // Need to figure out the x, and y.
-        // if someone is watching IM SO SORRY FOR THE HORRID CODE. :(
-        let (current, color): (&str, &BfgColor) = match mode {
-            Mode::COMMAND => (" COMMAND ", &self.status_cmode),
-            Mode::NORMAL => (" NORMAL ", &self.status_nmode),
-            Mode::INSERT => (" --insert-- ", &self.status_imode),
-            _ => ("NORMAL", &self.status_nmode),
-        };
-        queue!(
-            stdout(),
-            MoveTo(self.loc_mode.x as u16, self.loc_mode.y as u16),
-            SetForegroundColor(color.fg),
-            SetBackgroundColor(AnsiValue(190)),
-            Print(current.bold()),
-            ResetColor
-        )
-        .unwrap();
-    }
-
-    fn status_loc(&self) {
-        queue!(
-            stdout(),
-            MoveTo(self.loc_loc.x as u16, self.loc_loc.y as u16),
-            SetForegroundColor(color.fg),
-            SetBackgroundColor(AnsiValue(190)),
-            Print(current.bold()),
-            ResetColor
-        )
-        .unwrap();
-    }
-
-    fn status_file_type(&self) {
+    fn msg(&self) -> StyledContent<String> {
+        style(format!(" {} ", self.msg))
+            .with(AnsiValue(self.fg))
+            .on(AnsiValue(self.bg))
+            .attribute(Attribute::Bold)
     }
 }
 
-#[allow(dead_code)]
+type SE = StatusElement;
+
+struct StatusBar {
+    row: i16,
+    width: i16,
+    bar: Vec<StatusElement>,
+}
+
+impl StatusBar {
+    fn new(row: i16, width: i16) -> Self {
+        let mode = SE::new(row, String::from("NORMAL"), BLACK, YELLOW);
+        let file_type = SE::new( row, String::from("FT N/A"), BLACK, YELLOW);
+        let cursor = SE::new(row, String::from("Cursor"), BLACK, YELLOW);
+        Self {
+            row,
+            width,
+            bar: vec!(mode, file_type, cursor),
+        }
+    }
+
+    fn render(&self) {
+        self.draw_bar();
+        let spacing = self.width as f32 / self.bar.len() as f32;
+        for (i, e) in self.bar.iter().enumerate() {
+            let x = spacing * i as f32;
+            queue!(
+                stdout(),
+                MoveTo(x as u16, e.row as u16),
+                Print(e.msg()),
+                ResetColor
+            ).unwrap();
+        }
+    }
+
+    fn draw_bar(&self) {
+        let y = self.bar[0].row;
+        for x in 0..self.width {
+            queue!(
+                stdout(),
+                MoveTo(x as u16, y as u16),
+                SetBackgroundColor(AnsiValue(233)),
+                Print(" "),
+                ResetColor
+            ).unwrap();
+        }
+    }
+}
+
 struct Screen {
     c_pos: Vector,
     s_pos: Vector,
@@ -183,7 +188,7 @@ impl Screen {
             terminal_size: Vector::new(width as i16, height as i16),
             win_dim: WinDim::new(0, (height - 3) as i16, 0, width as i16),
             version: String::from("0.0.1"),
-            status_bar: StatusBar::new(width as i16, (height - 2)as i16),
+            status_bar: StatusBar::new((height - 2)as i16, width as i16),
             bg: Color::Black,
             mode: Mode::NORMAL,
         }
@@ -276,7 +281,7 @@ impl Screen {
     fn display_refresh(&mut self) -> Result<()> {
 
         if self.refeash { self.clear() }
-        self.status_bar.render_status_bar(&self.mode);
+        self.status_bar.render();
 
         if let None = &self.text { self.display_welcome(); }
 
