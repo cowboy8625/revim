@@ -3,17 +3,19 @@ TODO List
 
 - [x] Welcome Message
 - [ ] **Status Bar**
-    - [ ] Modes
+    - [x] Modes
     - [ ] File Type
     - [ ] File Name
 - [ ] Modes
-    - [ ] Normal Mode
-    - [ ] Command Mode
+    - [x] Normal Mode
+    - [x] Command Mode
     - [ ] Insert Mode
+    - [ ] Search Mode
 - [ ] FileIO
     - [ ] Load File
     - [ ] Save File
     - [ ] Open Full File
+- [ ] Show `~` at a empty line
 - [ ] Scrolling
 - [ ] Syntax HighLighing
 
