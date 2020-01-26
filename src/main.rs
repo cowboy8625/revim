@@ -1,6 +1,7 @@
 /***   ReVim "Rust Edition Vim"   ***/
 use std::env;
 use std::fs::File;
+use std::io::ErrorKind;
 
 use std::{
     io::{stdout, BufReader, BufWriter, Stdout, Write},
@@ -67,25 +68,31 @@ impl Editor {
     }
 
     fn save(&mut self, name: Option<&str>) {
-        let name = &self.file_name.clone().unwrap_or(name.unwrap_or("new_text.txt").to_string());
-        match &self.file_text {
+        let name = &self
+            .file_name
+            .clone()
+            .unwrap_or_else(|| match &self.file_name {
+                Some(f) => {
+                    if f == "new_file.txt" {
+                        name.unwrap_or("new_text.txt").to_string()
+                    } else {
+                        name.unwrap_or("new_text.txt").to_string()
+                    }
+                }
+                None => name.unwrap_or("new_text.txt").to_string()
+            });
+        match &mut self.file_text {
             Some(f) => {
-                let f = f.clone();
-                f.write_to(BufWriter::new(File::create(name)
-                      .expect("File Creation Error in save_file")))
-                      .expect("BufWriter Error: save_file.");
+                f.write_to(BufWriter::new(
+                    File::create(name).expect("File Creation Error in save_file"),
+                ))
+                .expect("BufWriter Error: save_file.");
             }
             None => {
-                let rope = Rope::new();
-                rope.write_to(BufWriter::new(File::create(name)
-                      .expect("File Creation Error in save_file")))
-                      .expect("BufWriter Error: save_file.");
-                self.file_text = Some(rope.clone());
-                // self.file_text = Some(self.creat_file(&name));
-            },
+                panic!("NO FILE");
+            }
         };
     }
-
 }
 
 /***  output   ***/
@@ -95,7 +102,7 @@ fn update_display(w: &mut Stdout, e: &Editor) {
         Ok(v) => v,
         Err(e) => panic!("Terminal Size ERROR: {}", e),
     };
-    if let None = e.file_text {
+    if let Some(f) = &e.file_text {
         welcome_message(w, tsize.0, tsize.1);
     }
     if let Mode::COMMAND = e.mode {
@@ -117,13 +124,14 @@ fn status_bar_mode(w: &mut Stdout, e: &Editor, _x: u16, y: u16) {
         style::Print(format!("{}, location: {}/{}", mode, 0, y - 2)),
         cursor::RestorePosition,
         style::ResetColor
-        ).unwrap();
+    )
+    .unwrap();
 }
 
 fn welcome_message(w: &mut Stdout, width: u16, height: u16) {
     // Message Bar Displays Commands, Invalid Commands, Errors, Warnings.
     for (y, msg) in WELCOME.split("\n").enumerate() {
-        let x = width  / 2 - ((msg.len() as u16) / 2);
+        let x = width / 2 - ((msg.len() as u16) / 2);
         let y = height / 3 + y as u16;
         queue!(
             w,
@@ -135,8 +143,6 @@ fn welcome_message(w: &mut Stdout, width: u16, height: u16) {
         .unwrap();
     }
 }
-
-
 
 fn message_bar_display(w: &mut Stdout, e: &Editor, tsize: (u16, u16)) {
     queue!(
@@ -259,30 +265,35 @@ fn input_insert_mode(w: &mut Stdout, k: KeyEvent, e: &mut Editor) {
     };
     let idx: usize = (pos.1 * tsize.0 + pos.0) as usize;
 
-    if let None = e.file_text {
-        e.save(Some("CRASH.txt"));
-    }
-    let start = match &mut e.file_text {Some(f) => f.line_to_char(idx), None => panic!("start is causeing this")};
+    // if let None = e.file_text {
+    // e.save(Some("CRASH.txt"));
+    // }
     queue!(
         w,
         cursor::SavePosition,
         cursor::MoveTo(50, 30),
-        style::Print(format!("idx: {}, X: {}, Y: {}, width: {}, height: {}, start: {}", idx, pos.0, pos.1, tsize.0, tsize.1, start)),
+        style::Print(format!(
+            "X: {}, Y: {}, width: {}, height: {}",
+            pos.0, pos.1, tsize.0, tsize.1
+        )),
         cursor::RestorePosition,
-        ).unwrap();
-    // let end = match &mut e.file_text {Some(f) => f.line_to_char(idx - 1), None => 0};
+    )
+    .unwrap();
     match k {
         KeyEvent {
             code: KeyCode::Char('h'),
             modifiers: KeyModifiers::CONTROL,
         } => {
-            // file_text.remove(start..end);
+            if let Some(ft) = &mut e.file_text {
+                ft.remove(idx..idx);
+            }
             queue!(
                 w,
                 cursor::MoveLeft(1),
                 style::Print(" "),
                 cursor::MoveLeft(1),
-                ).unwrap();
+            )
+            .unwrap();
         }
         KeyEvent {
             code: KeyCode::Char('c'),
@@ -292,20 +303,17 @@ fn input_insert_mode(w: &mut Stdout, k: KeyEvent, e: &mut Editor) {
             match code {
                 KeyCode::Enter => {
                     // new line
-                    queue!(
-                        w,
-                        style::Print("\r\n"),
-                        ).unwrap();
+                    if let Some(ft) = &mut e.file_text {
+                        ft.insert_char(pos.1 as usize, '\n')
+                    }
+                    queue!(w, style::Print("\r\n"),).unwrap();
                 }
                 KeyCode::Char(c) => {
                     // append to text file
                     if let Some(ft) = &mut e.file_text {
-                        ft.insert_char(idx, c)
+                        ft.insert_char(pos.1 as usize, c)
                     }
-                    queue!(
-                        w,
-                        style::Print(c),
-                        ).unwrap();
+                    queue!(w, style::Print(c),).unwrap();
                 }
                 _ => {}
             }
@@ -345,24 +353,23 @@ fn editor_alert(msg: &str) {
 
 fn cli_file() -> (Option<Rope>, Option<String>) {
     let mut args = env::args();
-
-    let mut text = None;
-    let mut name = None;
-    let _ = args.next();
-
-    if let Some(arg) = args.next() {
-        if let Ok(f) = File::open(&arg) {
-            if let Ok(r) = Rope::from_reader(BufReader::new(f)) {
-                text = Some(r);
-                name = Some(arg);
-            } else {
-                editor_alert("Invalid FileName");
-            }
-        } else {
-            editor_alert("Invalid FileName");
-        }
-    }
-    (text, name)
+    let name = args.nth(2);
+    let rope: Rope = match &name {
+        Some(n) => {
+            Rope::from_reader(BufReader::new(File::open(&n).unwrap_or_else(|error| {
+                if error.kind() == ErrorKind::NotFound {
+                    File::create(n).unwrap_or_else(|error| {
+                        panic!("Problem creating the file: {:?}", error);
+                    })
+                } else {
+                    panic!("Problem opening the file: {:?}", error);
+                }
+            })))
+            .unwrap()
+        },
+        None => Rope::new(),
+    };
+    (Some(rope), name)
 }
 
 fn main() -> Result<()> {
