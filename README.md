@@ -1,8 +1,9 @@
 ReVim
 =====
-    ReVim stands for "Rust Edition Vim".  I wanted a Simple vim that would compile and run on any terminal like in windows.  We all know Vim can be ran on windows but its
-not the easiest to do.  ALSO I just really wanted to make a text editor, so this was a cool project to do. Currently ReVim is in a very early statge of progress.  If you
-would like to contribute to ReVim submite a merge request.
+    ReVim stands for "Rust Edition Vim".  I wanted a Simple vim that would compile and run on any terminal like in windows.
+We all know Vim can be ran on windows but its not the easiest to do.  ALSO I just really wanted to make a text editor,
+so this was a cool project to do. Currently ReVim is in a very early statge of progress.  If you would like to contribute
+to ReVim submite a merge request.
 
 Dependency's
 ============
