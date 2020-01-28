@@ -84,8 +84,8 @@ fn input_insert_mode(s: &mut Screen, k: KeyEvent) {
             modifiers: KeyModifiers::CONTROL,
         } => {
             // TODO Fix backspace/delete
-            s.e.textbuffer.remove(idx..idx);
-            s.backspace();
+            // s.e.textbuffer.remove(idx..idx);
+            s.backspace(idx);
         }
         KeyEvent {
             code: KeyCode::Char('c'),
@@ -95,13 +95,11 @@ fn input_insert_mode(s: &mut Screen, k: KeyEvent) {
             match code {
                 KeyCode::Enter => {
                     // new line
-                    s.e.textbuffer.new_line(pos.0, pos.1);
-                    s.line_break();
+                    s.line_break(pos.0, pos.1);
                 }
                 KeyCode::Char(c) => {
                     // append to text file
-                    s.e.textbuffer.insert_char(pos.0, pos.1, c);
-                    s.insert_char(c);
+                    s.insert_char(pos.0, pos.1, c);
                 }
                 _ => {}
             }

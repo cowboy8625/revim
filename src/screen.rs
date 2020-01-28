@@ -4,6 +4,7 @@ use std::io::{BufReader, BufWriter, Stdout, Write};
 
 use crossterm::{
     cursor,
+    style::{Print},
     execute, queue, style, terminal,
     terminal::{Clear, ClearType},
 };
@@ -23,13 +24,25 @@ impl Screen {
     }
 
     pub fn update(&mut self) {
-        let (x, y) = Screen::get_terminal_size();
-        self.welcome_message(x, y);
-        self.status_bar_mode(y);
+        let (w, h) = Screen::get_terminal_size();
+        let (x, y) = Screen::get_curser_postion();
+        // self.welcome_message(w, h);
+        self.render_text(y);
+        self.status_bar_mode(h, x, y);
         if self.e.is_command() {
-            self.message_bar_display(y);
+            self.message_bar_display(h);
         }
         self.w.flush().unwrap();
+    }
+
+    fn render_text(&mut self, y: u16) {
+        if self.e.textbuffer.dirty {
+            queue!(
+                self.w,
+                cursor::MoveTo(0, y),
+                Print(self.e.textbuffer.get_line(y as usize))
+                ).unwrap();
+        }
     }
 
     fn welcome_message(&mut self, width: u16, height: u16) {
@@ -47,13 +60,14 @@ impl Screen {
         }
     }
 
-    pub fn status_bar_mode(&mut self, y: u16) {
+    pub fn status_bar_mode(&mut self, h: u16, x: u16, y: u16) {
         let mode = self.e.mode.to_str();
         queue!(
             self.w,
             cursor::SavePosition,
-            cursor::MoveTo(0, y - 2),
-            style::Print(format!("{}, location: {}/{}", mode, 0, y - 2)),
+            cursor::MoveTo(0, h - 2),
+            Clear(ClearType::CurrentLine),
+            style::Print(format!("{}, location: {}/{}", mode, x, y)),
             cursor::RestorePosition,
             style::ResetColor
         )
@@ -91,21 +105,24 @@ impl Screen {
         queue!(self.w, cursor::MoveRight(1)).unwrap_or_default();
     }
 
-    pub fn backspace(&mut self) {
+    pub fn backspace(&mut self, idx: usize) {
+        let idx = if idx > 0 { idx - 1 } else { idx };
+        self.e.textbuffer.remove(idx..);
         queue!(
             self.w,
             cursor::MoveLeft(1),
-            style::Print(" "),
+            Print(' '),
             cursor::MoveLeft(1),
         ).unwrap();
     }
 
-    pub fn line_break(&mut self) {
+    pub fn line_break(&mut self, x: u16, y: u16) {
+        self.e.textbuffer.new_line(x, y);
         queue!(self.w, style::Print("\r\n")).unwrap();
     }
 
-    pub fn insert_char(&mut self, chr: char) {
-        queue!(self.w, style::Print(chr),).unwrap();
+    pub fn insert_char(&mut self, x: u16, y: u16, chr: char) {
+        self.e.textbuffer.insert_char(x, y, chr);
     }
 
     pub fn start(&mut self) {
@@ -115,6 +132,12 @@ impl Screen {
             terminal::EnterAlternateScreen,
             cursor::MoveTo(0, 0)
         ).unwrap();
+        for idx in 0..self.e.textbuffer.len_lines() {
+            queue!(
+                self.w,
+                Print(format!("{}\r", self.e.textbuffer.get_line(idx))),
+                ).unwrap();
+        }
     }
 
     pub fn end(&mut self) {
@@ -135,6 +158,14 @@ impl Screen {
             Err(e) => panic!("Terminal Size ERROR: {}", e),
         };
         tsize
+    }
+
+    fn get_curser_postion() -> (u16, u16) {
+        let loc = match cursor::position() {
+            Ok(v) => v,
+            Err(e) => panic!("Curser Postion ERROR: {}", e),
+        };
+        loc
     }
 }
 

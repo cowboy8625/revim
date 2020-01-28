@@ -4,7 +4,7 @@ extern crate ropey;
 
 use std::fs::File;
 use std::io::{BufReader, BufWriter, ErrorKind};
-use std::ops::Range;
+use std::ops::RangeFrom;
 
 use ropey::iter::{Bytes, Chars, Chunks, Lines};
 use ropey::{Rope, RopeSlice};
@@ -59,7 +59,11 @@ impl TextBuffer {
         self.text.chunks()
     }
 
-    pub fn remove(&mut self, idx: Range<usize>) {
+    pub fn len_lines(&self) -> usize {
+        self.text.len_lines()
+    }
+
+    pub fn remove(&mut self, idx: RangeFrom<usize>) {
         self.text.remove(idx);
         self.dirty = true;
     }
@@ -77,10 +81,12 @@ impl TextBuffer {
     pub fn insert_char(&mut self, x: u16, y: u16, chr: char) {
         let line_index = self.text.line_to_char(y as usize);
         self.text.insert_char(line_index + x as usize, chr);
+        self.dirty = true;
     }
 
     pub fn new_line(&mut self, x: u16, y: u16) {
         let line_index = self.text.line_to_char(y as usize);
         self.text.insert_char(line_index + x as usize, '\n');
+        self.dirty = true;
     }
 }
