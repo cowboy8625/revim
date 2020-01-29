@@ -84,7 +84,6 @@ fn input_insert_mode(s: &mut Screen, k: KeyEvent) {
             modifiers: KeyModifiers::CONTROL,
         } => {
             // TODO Fix backspace/delete
-            // s.e.textbuffer.remove(idx..idx);
             s.backspace(idx);
         }
         KeyEvent {
@@ -139,17 +138,16 @@ fn main() -> Result<()> {
 
     let editor: Editor = Editor::new(Mode::NORMAL, file_name);
     let mut screen: Screen = Screen::new(stdout, editor);
+
     screen.start();
 
-    screen.update();
-
     loop {
+        screen.update();
         if poll(Duration::from_millis(10))? {
             input_events(&mut screen);
             if screen.e.quit {
                 break;
             }
-            screen.update();
         }
     }
 

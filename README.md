@@ -1,3 +1,7 @@
+![](https://img.shields.io/github/issues/cowboy8625/ReVim)
+![](https://img.shields.io/github/last-commit/cowboy8625/ReVim)
+![Discord](https://img.shields.io/discord/509849754155614230)
+![GitHub repo size](https://img.shields.io/github/repo-size/cowboy8625/ReVim)
 # ReVim
 
 ReVim stands for "Rust Edition Vim".  I wanted a Simple vim that would compile and run on any terminal

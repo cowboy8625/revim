@@ -130,14 +130,19 @@ impl Screen {
             self.w,
             cursor::Show,
             terminal::EnterAlternateScreen,
-            cursor::MoveTo(0, 0)
+            cursor::MoveTo(0, 0),
+            style::ResetColor,
         ).unwrap();
+        let (w, h) = Screen::get_terminal_size();
         for idx in 0..self.e.textbuffer.len_lines() {
+            if idx == h as usize { break; }
             queue!(
                 self.w,
                 Print(format!("{}\r", self.e.textbuffer.get_line(idx))),
                 ).unwrap();
         }
+        queue!(self.w, cursor::MoveTo(0, 0)).unwrap();
+
     }
 
     pub fn end(&mut self) {
