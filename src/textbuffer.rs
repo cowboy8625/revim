@@ -2,7 +2,7 @@
 
 extern crate ropey;
 
-use std::fs::File;
+use std::fs::{File, read};
 use std::io::{BufReader, BufWriter, ErrorKind};
 use std::ops::RangeFrom;
 
@@ -19,16 +19,26 @@ impl TextBuffer {
     pub fn from_path(path: Option<String>) -> Self {
         let text = match &path {
             Some(n) => {
-                Rope::from_reader(BufReader::new(File::open(&n).unwrap_or_else(|error| {
-                    if error.kind() == ErrorKind::NotFound {
-                        File::create(n).unwrap_or_else(|error| {
-                            panic!("Problem creating the file: {:?}", error);
-                        })
-                    } else {
-                        panic!("Problem opening the file: {:?}", error);
-                    }
-                })))
-                .unwrap()
+				// See if the file already exists
+				// Hacky code to convert a Result to a boolean
+				if match read(&n) {Ok(_x) => true, Err(_e) => false} {
+					// If the file exists read from it
+                	Rope::from_reader(BufReader::new(File::open(&n).unwrap_or_else(|error| {
+                	    if error.kind() == ErrorKind::NotFound {
+                	        File::create(n).unwrap_or_else(|error| {
+                	            panic!("Problem creating the file: {:?}", error);
+                	        })
+                	    } else {
+                	        panic!("Problem opening the file: {:?}", error);
+                	    }
+                	})))
+                	.unwrap()
+					// Able to just use unwrap here because the file should always exist due to the read check earlier
+				}
+				else {
+					// If the file doesn't exist just return a new rope and it will create the file during the first save
+					Rope::new()
+				}
             },
             None => Rope::new(),
         };
