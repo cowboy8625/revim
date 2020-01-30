@@ -63,8 +63,8 @@ impl TextBuffer {
         self.text.len_lines()
     }
 
-    pub fn remove(&mut self, idx: RangeFrom<usize>) {
-        self.text.remove(idx);
+    pub fn remove(&mut self, idx: usize) {
+        self.text.remove(idx - 1..idx);
         self.dirty = true;
     }
 

@@ -3,6 +3,8 @@
 mod editor;
 mod screen;
 mod textbuffer;
+mod position;
+mod dimensions;
 
 use std::env;
 
@@ -19,6 +21,8 @@ use crossterm::{
 use editor::{Editor, ModeSwitch, Mode};
 use screen::Screen;
 use textbuffer::TextBuffer;
+use position::Position;
+use dimensions::Dimensions;
 
 fn input_command_mode(s: &mut Screen, k: KeyEvent) {
     //KeyEvent
@@ -69,22 +73,13 @@ fn input_normal_mode(s: &mut Screen, k: KeyEvent) {
 }
 
 fn input_insert_mode(s: &mut Screen, k: KeyEvent) {
-    let pos = match cursor::position() {
-        Ok(v) => v,
-        Err(e) => panic!("CURSOR ERROR: {}.", e),
-    };
-    let tsize = match terminal::size() {
-        Ok(v) => v,
-        Err(e) => panic!("Terminal Size ERRO: {}.", e),
-    };
-    let idx: usize = (pos.1 * tsize.0 + pos.0) as usize;
     match k {
         KeyEvent {
             code: KeyCode::Char('h'),
             modifiers: KeyModifiers::CONTROL,
         } => {
             // TODO Fix backspace/delete
-            s.backspace(idx);
+            s.backspace();
         }
         KeyEvent {
             code: KeyCode::Char('c'),
@@ -94,11 +89,11 @@ fn input_insert_mode(s: &mut Screen, k: KeyEvent) {
             match code {
                 KeyCode::Enter => {
                     // new line
-                    s.line_break(pos.0, pos.1);
+                    s.line_break();
                 }
                 KeyCode::Char(c) => {
                     // append to text file
-                    s.insert_char(pos.0, pos.1, c);
+                    s.insert_char(c);
                 }
                 _ => {}
             }
