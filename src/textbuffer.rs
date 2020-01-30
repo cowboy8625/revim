@@ -2,7 +2,7 @@
 
 extern crate ropey;
 
-use std::fs::{File, read};
+use std::fs::{File, metadata};
 use std::io::{BufReader, BufWriter, ErrorKind};
 use std::ops::RangeFrom;
 
@@ -20,8 +20,7 @@ impl TextBuffer {
         let text = match &path {
             Some(n) => {
                 // See if the file already exists
-                // Hacky code to convert a Result to a boolean
-                if match read(&n) {Ok(_x) => true, Err(_e) => false} {
+                if metadata(&n).is_ok() {
                     // If the file exists read from it
                     Rope::from_reader(BufReader::new(File::open(&n).unwrap_or_else(|error| {
                         if error.kind() == ErrorKind::NotFound {
