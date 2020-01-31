@@ -1,8 +1,9 @@
-use crate::editor::{Editor, ModeSwitch};
+use crate::editor::{Editor, ModeSwitch, Mode};
 use crate::position::Position;
 use crate::dimensions::Dimensions;
 
 use std::io::{BufReader, BufWriter, Stdout, Write};
+use std::cmp::{min};
 
 use crossterm::{
     cursor,
@@ -56,23 +57,78 @@ impl Screen {
 
 
     pub fn move_up(&mut self) {
-        queue!(self.w, cursor::MoveUp(1)).unwrap();
-        self.cursor.move_up(1, 0);
+        if self.cursor.y > 0 {
+            let include_line_ends = match self.e.mode {
+                Mode::INSERT => 0,
+                _ => 1
+            };
+
+
+            let x_val = if self.cursor.x == self.e.textbuffer.line_len(self.cursor.y as usize) {self.e.textbuffer.line_len(self.cursor.y as usize - 1)} else {min(self.cursor.x, self.e.textbuffer.line_len(self.cursor.y as usize - 1) - include_line_ends)};
+            queue!(self.w, cursor::MoveTo(x_val,self.cursor.y-1)).unwrap();
+            if x_val != self.cursor.x {
+                self.cursor.x = x_val;
+            }
+            self.cursor.move_up(1, 0);
+        }
     }
 
     pub fn move_down(&mut self) {
-        queue!(self.w, cursor::MoveDown(1)).unwrap();
-        self.cursor.move_down(1, self.dim.h);
+        if self.cursor.y + 1 < self.e.textbuffer.text.len_lines() as u16 {
+
+            let include_line_ends = match self.e.mode {
+                Mode::INSERT => 0,
+                _ => 1
+            };
+
+            let x_val = if self.cursor.x == self.e.textbuffer.line_len(self.cursor.y as usize) {self.e.textbuffer.line_len(self.cursor.y as usize + 1)} else {min(self.cursor.x, self.e.textbuffer.line_len(self.cursor.y as usize + 1) - include_line_ends)};
+
+            queue!(self.w, cursor::MoveTo(x_val,self.cursor.y+1)).unwrap();
+
+            if x_val != self.cursor.x {
+                self.cursor.x = x_val;
+            }
+
+            self.cursor.move_down(1, self.dim.h);
+        }
     }
 
     pub fn move_left(&mut self) {
-        queue!(self.w, cursor::MoveLeft(1)).unwrap();
-        self.cursor.move_left(1, 0);
+        if self.cursor.x > 0 {
+            queue!(self.w, cursor::MoveLeft(1)).unwrap();
+            self.cursor.move_left(1, 0);
+        } else if self.cursor.y > 0 {
+            let include_line_ends = match self.e.mode {
+                Mode::INSERT => 0,
+                _ => 1
+            };
+
+            let x_val = self.e.textbuffer.line_len(self.cursor.y as usize - 1) - include_line_ends;
+
+            queue!(self.w, cursor::MoveTo(x_val, self.cursor.y - 1)).unwrap();
+
+            self.cursor.x = x_val;
+            self.cursor.move_up(1, 0);
+        }
     }
 
     pub fn move_right(&mut self) {
-        queue!(self.w, cursor::MoveRight(1)).unwrap();
-        self.cursor.move_right(1, self.dim.w);
+        let include_line_ends = match self.e.mode {
+                Mode::INSERT => 1,
+                _ => 0
+        };
+
+        if self.cursor.x + 1 < self.e.textbuffer.line_len(self.cursor.y as usize) + include_line_ends {
+            queue!(self.w, cursor::MoveRight(1)).unwrap();
+            self.cursor.move_right(1, self.dim.w);
+        } else if self.cursor.y + 1 < self.e.textbuffer.len_lines() as u16 {
+
+
+            queue!(self.w, cursor::MoveTo(0, self.cursor.y + 1)).unwrap();
+
+            self.cursor.x = 0;
+            self.cursor.move_down(1, self.dim.h);
+        }
     }
 
     pub fn backspace(&mut self) {
