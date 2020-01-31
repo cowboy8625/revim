@@ -35,16 +35,16 @@ impl Screen {
     pub fn update(&mut self) {
         // self.clear();
         // self.welcome_message(w, h);
-
-        //problem is in this block
+        //problem is in this blocp
         let (x, y) = match cursor::position() {
             Ok(v) => (v.0, v.1),
             Err(e) => panic!("Curser Postion ERROR: {}", e),
         };
         let msg = format!("X: {}, y: {}", x, y);
         self.editor_alert(&msg);
-        if !self.e.textbuffer.is_empty() {
-            self.render_text();
+
+        if !self.e.textbuffer.is_empty() && self.e.textbuffer.dirty{
+            self.render_file();
         }
 
         self.status_bar_mode();
@@ -77,7 +77,11 @@ impl Screen {
 
     pub fn backspace(&mut self) {
         self.e.textbuffer.remove(self.cursor.x, self.cursor.y);
-        self.cursor.move_left(1, 0);
+        if self.cursor.x == 0 {
+            //  Goto end of line above.
+        } else {
+            self.cursor.move_left(1, 0);
+        }
         queue!(
             self.w,
             cursor::Hide,
@@ -101,7 +105,7 @@ impl Screen {
 
     pub fn insert_char(&mut self, chr: char) {
         self.e.textbuffer.insert_char(self.cursor.x, self.cursor.y, chr);
-        self.cursor.move_right(1, self.dim.w);
+        self.move_right();
     }
 
     pub fn start(&mut self) {
@@ -178,6 +182,17 @@ impl Screen {
             self.w,
             cursor::MoveTo(0, y),
             Print(self.e.textbuffer.get_line(y as usize)),
+            ).unwrap();
+    }
+
+    fn render_file(&mut self) {
+        queue!(
+            self.w,
+            cursor::SavePosition,
+            cursor::MoveTo(0, 0),
+            Clear(ClearType::All),
+            Print(self.e.textbuffer.text.slice(..)),
+            cursor::RestorePosition,
             ).unwrap();
     }
 
