@@ -63,9 +63,13 @@ fn input_normal_mode(s: &mut Screen, k: KeyEvent) {
             KeyCode::Char('i') => {
                 s.e.insert_mode();
             }
+			KeyCode::Down |
             KeyCode::Char('j') => s.move_down(),
+			KeyCode::Up |
             KeyCode::Char('k') => s.move_up(),
+			KeyCode::Left |
             KeyCode::Char('h') => s.move_left(),
+			KeyCode::Right |
             KeyCode::Char('l') => s.move_right(),
             _ => {}
         },
@@ -87,6 +91,12 @@ fn input_insert_mode(s: &mut Screen, k: KeyEvent) {
         } => s.e.normal_mode(),
         KeyEvent { code, .. } => {
             match code {
+                // Cursor movement
+                KeyCode::Up => s.move_up(),
+                KeyCode::Down => s.move_down(),
+                KeyCode::Left => s.move_left(),
+                KeyCode::Right => s.move_right(),
+
                 KeyCode::Enter => {
                     // new line
                     s.line_break();
