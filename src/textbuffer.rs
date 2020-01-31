@@ -103,6 +103,7 @@ impl TextBuffer {
     pub fn new_line(&mut self, x: u16, y: u16) {
         let line_index = self.text.line_to_char(y as usize);
         self.text.insert_char(line_index + x as usize, '\n');
+        self.text.insert_char(line_index + x as usize, '\r');
         self.dirty = true;
     }
 
