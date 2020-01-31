@@ -35,8 +35,11 @@ impl Screen {
     pub fn update(&mut self) {
         // self.clear();
         // self.welcome_message(w, h);
-        self.render_text(self.cursor.y);
-        self.status_bar_mode(self.dim.h, self.cursor.x, self.cursor.y);
+        if !self.e.textbuffer.is_empty() {
+            self.render_text();
+        }
+
+        self.status_bar_mode();
         if self.e.is_command() {
             self.message_bar_display(self.dim.h);
         }
@@ -46,50 +49,47 @@ impl Screen {
 
     pub fn move_up(&mut self) {
         queue!(self.w, cursor::MoveUp(1)).unwrap_or_default();
-        self.cursor.y -= 1;
+        self.cursor.move_up(1, 0);
     }
 
     pub fn move_down(&mut self) {
         queue!(self.w, cursor::MoveDown(1)).unwrap_or_default();
-        self.cursor.y += 1;
+        self.cursor.move_down(1, self.dim.h);
     }
 
     pub fn move_left(&mut self) {
         queue!(self.w, cursor::MoveLeft(1)).unwrap_or_default();
-        self.cursor.x -= 1;
+        self.cursor.move_left(1, 0);
     }
 
     pub fn move_right(&mut self) {
         queue!(self.w, cursor::MoveRight(1)).unwrap_or_default();
-        self.cursor.x += 1;
+        self.cursor.move_right(1, self.dim.w);
     }
 
     pub fn backspace(&mut self) {
-        // self.buffer.remove(self.cursor_index - 1..self.cursor_index);
-
-        let idx = self.cursor.to_index(self.dim.w) as usize;
-        self.e.textbuffer.remove(idx);
-        self.cursor.x -= 1;
-/*
+        self.e.textbuffer.remove(self.cursor.x, self.cursor.y);
+        self.cursor.move_left(1, 0);
         queue!(
             self.w,
+            cursor::Hide,
             cursor::MoveLeft(1),
             Print(' '),
             cursor::MoveLeft(1),
+            cursor::Show,
         ).unwrap();
-*/
     }
 
     pub fn line_break(&mut self) {
         self.e.textbuffer.new_line(self.cursor.x, self.cursor.y);
         self.cursor.x = 0;
-        self.cursor.y += 1;
-        queue!(self.w, style::Print("\r")).unwrap();
+        self.cursor.move_down(1, self.dim.h);
+        queue!(self.w, cursor::Hide, cursor::MoveTo(self.cursor.x, self.cursor.y), cursor::Show).unwrap();
     }
 
     pub fn insert_char(&mut self, chr: char) {
         self.e.textbuffer.insert_char(self.cursor.x, self.cursor.y, chr);
-        self.cursor.x += 1;
+        self.cursor.move_right(1, self.dim.w);
     }
 
     pub fn start(&mut self) {
@@ -125,6 +125,17 @@ impl Screen {
             ).unwrap();
     }
 
+    fn editor_alert(&mut self, msg: &str) {
+        queue!(
+            self.w,
+            cursor::SavePosition,
+            cursor::MoveTo(0, self.dim.h - 1),
+            style::Print(msg),
+            cursor::RestorePosition,
+        )
+        .unwrap();
+    }
+
 
 }
 
@@ -139,19 +150,19 @@ impl Screen {
             ).unwrap();
     }
 
-    fn render_char(&mut self, x: u16, y: u16, chr: char) {
+    fn render_char(&mut self, chr: char) {
         queue!(
             self.w,
-            cursor::MoveTo(0, y),
+            cursor::MoveTo(0, self.cursor.y),
             Print(chr)
             ).unwrap();
     }
 
-    fn render_text(&mut self, y: u16) {
+    fn render_text(&mut self) {
         queue!(
             self.w,
-            cursor::MoveTo(0, y),
-            Print(self.e.textbuffer.get_line(y as usize))
+            cursor::MoveTo(0, self.cursor.y),
+            Print(self.e.textbuffer.get_line(self.cursor.y as usize))
             ).unwrap();
     }
 
@@ -170,14 +181,14 @@ impl Screen {
         }
     }
 
-    fn status_bar_mode(&mut self, h: u16, x: u16, y: u16) {
+    fn status_bar_mode(&mut self) {
         let mode = self.e.mode.to_str();
         queue!(
             self.w,
             cursor::SavePosition,
-            cursor::MoveTo(0, h - 2),
+            cursor::MoveTo(0, self.dim.h - 2),
             Clear(ClearType::CurrentLine),
-            style::Print(format!("{}, location: {}/{}", mode, x, y)),
+            style::Print(format!("{}, location: {}/{}", mode, self.cursor.x, self.cursor.y)),
             cursor::RestorePosition,
             style::ResetColor
         )
@@ -220,13 +231,7 @@ impl Screen {
     }
 }
 
-fn editor_alert(w: &mut Stdout, msg: &str) {
-    execute!(
-        w,
-        cursor::SavePosition,
-        cursor::MoveTo(0, 0),
-        style::Print(msg),
-        cursor::RestorePosition,
-    )
-    .unwrap();
-}
+
+
+
+

@@ -17,7 +17,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode},
     Result,
 };
-// use ropey::Rope;
+
 use editor::{Editor, ModeSwitch, Mode};
 use screen::Screen;
 use textbuffer::TextBuffer;

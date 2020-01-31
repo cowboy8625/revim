@@ -13,3 +13,9 @@ ropey = "1.1.0"
 [profile.release]
 debug = true
 
+[badges]
+is-it-maintained-issue-resolution = { repository = "https://github.com/cowboy8625/ReVim" }
+is-it-maintained-open-issues = { repository = "https://github.com/cowboy8625/ReVim" }
+maintenance = {status = "actively-developed"}
+# maintenance = { status = "experimental" }
+
