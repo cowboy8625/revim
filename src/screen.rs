@@ -35,6 +35,14 @@ impl Screen {
     pub fn update(&mut self) {
         // self.clear();
         // self.welcome_message(w, h);
+
+        //problem is in this block
+        let (x, y) = match cursor::position() {
+            Ok(v) => (v.0, v.1),
+            Err(e) => panic!("Curser Postion ERROR: {}", e),
+        };
+        let msg = format!("X: {}, y: {}", x, y);
+        self.editor_alert(&msg);
         if !self.e.textbuffer.is_empty() {
             self.render_text();
         }
@@ -48,22 +56,22 @@ impl Screen {
 
 
     pub fn move_up(&mut self) {
-        queue!(self.w, cursor::MoveUp(1)).unwrap_or_default();
+        queue!(self.w, cursor::MoveUp(1)).unwrap();
         self.cursor.move_up(1, 0);
     }
 
     pub fn move_down(&mut self) {
-        queue!(self.w, cursor::MoveDown(1)).unwrap_or_default();
+        queue!(self.w, cursor::MoveDown(1)).unwrap();
         self.cursor.move_down(1, self.dim.h);
     }
 
     pub fn move_left(&mut self) {
-        queue!(self.w, cursor::MoveLeft(1)).unwrap_or_default();
+        queue!(self.w, cursor::MoveLeft(1)).unwrap();
         self.cursor.move_left(1, 0);
     }
 
     pub fn move_right(&mut self) {
-        queue!(self.w, cursor::MoveRight(1)).unwrap_or_default();
+        queue!(self.w, cursor::MoveRight(1)).unwrap();
         self.cursor.move_right(1, self.dim.w);
     }
 
@@ -84,7 +92,11 @@ impl Screen {
         self.e.textbuffer.new_line(self.cursor.x, self.cursor.y);
         self.cursor.x = 0;
         self.cursor.move_down(1, self.dim.h);
-        queue!(self.w, cursor::Hide, cursor::MoveTo(self.cursor.x, self.cursor.y), cursor::Show).unwrap();
+        queue!(self.w,
+               cursor::Hide,
+               cursor::MoveToNextLine(1),
+               cursor::Show
+            ).unwrap();
     }
 
     pub fn insert_char(&mut self, chr: char) {
@@ -100,8 +112,6 @@ impl Screen {
             cursor::MoveTo(0, 0),
             style::ResetColor,
         ).unwrap();
-        // TODO remove this and store width, height, loc_x and loc_y in Screen struct.
-        // This is causeing lag.
         for idx in 0..self.e.textbuffer.len_lines() {
             if idx == self.dim.h as usize { break; }
             queue!(
@@ -130,6 +140,7 @@ impl Screen {
             self.w,
             cursor::SavePosition,
             cursor::MoveTo(0, self.dim.h - 1),
+            Clear(ClearType::CurrentLine),
             style::Print(msg),
             cursor::RestorePosition,
         )
@@ -146,7 +157,7 @@ impl Screen {
         queue!(
             self.w,
             cursor::MoveTo(0, y),
-            Print(line)
+            Print(line),
             ).unwrap();
     }
 
@@ -154,15 +165,19 @@ impl Screen {
         queue!(
             self.w,
             cursor::MoveTo(0, self.cursor.y),
-            Print(chr)
+            Print(chr),
             ).unwrap();
     }
 
     fn render_text(&mut self) {
+        let (x, y) = match cursor::position() {
+            Ok(v) => (v.0, v.1),
+            Err(e) => panic!("Curser Postion ERROR: {}", e),
+        };
         queue!(
             self.w,
-            cursor::MoveTo(0, self.cursor.y),
-            Print(self.e.textbuffer.get_line(self.cursor.y as usize))
+            cursor::MoveTo(0, y),
+            Print(self.e.textbuffer.get_line(y as usize)),
             ).unwrap();
     }
 
