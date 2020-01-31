@@ -52,6 +52,10 @@ impl TextBuffer {
         self.text.line(idx)
     }
 
+    pub fn line_len(&self, idx: usize) -> u16 {
+        self.text.line(idx as usize).as_str().unwrap().trim_end_matches("\n").trim_end_matches("\r").len() as u16
+    }
+
     pub fn bytes<'a>(&'a self) -> Bytes<'a> {
         self.text.bytes()
     }
