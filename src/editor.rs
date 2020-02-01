@@ -1,6 +1,6 @@
 use crate::textbuffer::TextBuffer;
-use std::io::{BufReader, BufWriter};
 use std::fs::File;
+use std::io::{BufReader, BufWriter};
 
 enum CommandType {
     Quit,
@@ -15,7 +15,7 @@ impl CommandType {
                 'w' => commands.push(Self::Save),
                 'q' => commands.push(Self::Quit),
                 ' ' => break,
-                _ => {},
+                _ => {}
             }
         }
         commands
@@ -70,10 +70,12 @@ impl Editor {
             Some(n) => n,
             None => name.unwrap_or("new_text.txt"),
         };
-        self.textbuffer.text.write_to(BufWriter::new(
-            File::create(name)
-            .expect("File Creation Error in save_file")))
-        .expect("BufWriter Error: save_file.");
+        self.textbuffer
+            .text
+            .write_to(BufWriter::new(
+                File::create(name).expect("File Creation Error in save_file"),
+            ))
+            .expect("BufWriter Error: save_file.");
     }
 
     pub fn run_command(&mut self) {
@@ -91,7 +93,7 @@ impl Editor {
         }
         for c in com.iter() {
             match c {
-                CommandType::Quit => self.quit = true,
+                CommandType::Quit => self.quit(),
                 CommandType::Save => self.save(name),
             }
         }

@@ -1,9 +1,9 @@
-use crate::editor::{Editor, ModeSwitch, Mode};
-use crate::position::Position;
 use crate::dimensions::Dimensions;
+use crate::editor::{Editor, Mode, ModeSwitch};
+use crate::position::Position;
 
+use std::cmp::min;
 use std::io::{BufReader, BufWriter, Stdout, Write};
-use std::cmp::{min};
 
 use crossterm::{
     cursor,
@@ -21,6 +21,7 @@ pub struct Screen {
     pub e: Editor,
     dim: Dimensions,
     cursor: Position,
+    can_welcome: bool,
 }
 
 impl Screen {
@@ -30,43 +31,54 @@ impl Screen {
             e,
             dim: Screen::get_terminal_size(),
             cursor: Position::new(0, 0),
+            can_welcome: true,
         }
     }
 
     pub fn update(&mut self) {
-        let (x, y) = match cursor::position() {
-            Ok(v) => (v.0, v.1),
-            Err(e) => panic!("Curser Postion ERROR: {}", e),
-        };
-        let msg = format!("X: {}, y: {}", x, y);
 
         if !self.e.textbuffer.is_empty() && self.e.textbuffer.dirty {
             self.render_file();
         }
 
-        self.editor_alert(&msg);
-        self.status_bar_mode();
+        // All this could be cleaned up.
+        if self.can_welcome {
+            if self.e.is_insert() {
+                queue!(self.w, Clear(ClearType::All)).unwrap();
+            } else {
+                self.welcome_message();
+            }
+            if self.e.textbuffer.dirty {
+                self.can_welcome = false;
+            }
+        }
 
+        self.render_empty_lines();
+        self.status_bar_mode();
         if self.e.is_command() {
             self.message_bar_display(self.dim.h);
         }
 
-        self.render_empty_lines();
 
         self.w.flush().unwrap();
     }
-
 
     pub fn move_up(&mut self) {
         if self.cursor.y > 0 {
             let include_line_ends = match self.e.mode {
                 Mode::INSERT => 0,
-                _ => 1
+                _ => 1,
             };
 
-
-            let x_val = if self.cursor.x == self.e.textbuffer.line_len(self.cursor.y as usize) {self.e.textbuffer.line_len(self.cursor.y as usize - 1)} else {min(self.cursor.x, self.e.textbuffer.line_len(self.cursor.y as usize - 1) - include_line_ends)};
-            queue!(self.w, cursor::MoveTo(x_val,self.cursor.y-1)).unwrap();
+            let x_val = if self.cursor.x == self.e.textbuffer.line_len(self.cursor.y as usize) {
+                self.e.textbuffer.line_len(self.cursor.y as usize - 1)
+            } else {
+                min(
+                    self.cursor.x,
+                    self.e.textbuffer.line_len(self.cursor.y as usize - 1) - include_line_ends,
+                )
+            };
+            queue!(self.w, cursor::MoveTo(x_val, self.cursor.y - 1)).unwrap();
             if x_val != self.cursor.x {
                 self.cursor.x = x_val;
             }
@@ -76,15 +88,21 @@ impl Screen {
 
     pub fn move_down(&mut self) {
         if self.cursor.y + 1 < self.e.textbuffer.text.len_lines() as u16 {
-
             let include_line_ends = match self.e.mode {
                 Mode::INSERT => 0,
-                _ => 1
+                _ => 1,
             };
 
-            let x_val = if self.cursor.x == self.e.textbuffer.line_len(self.cursor.y as usize) {self.e.textbuffer.line_len(self.cursor.y as usize + 1)} else {min(self.cursor.x, self.e.textbuffer.line_len(self.cursor.y as usize + 1) - include_line_ends)};
+            let x_val = if self.cursor.x == self.e.textbuffer.line_len(self.cursor.y as usize) {
+                self.e.textbuffer.line_len(self.cursor.y as usize + 1)
+            } else {
+                min(
+                    self.cursor.x,
+                    self.e.textbuffer.line_len(self.cursor.y as usize + 1) - include_line_ends,
+                )
+            };
 
-            queue!(self.w, cursor::MoveTo(x_val,self.cursor.y+1)).unwrap();
+            queue!(self.w, cursor::MoveTo(x_val, self.cursor.y + 1)).unwrap();
 
             if x_val != self.cursor.x {
                 self.cursor.x = x_val;
@@ -101,7 +119,7 @@ impl Screen {
         } else if self.cursor.y > 0 {
             let include_line_ends = match self.e.mode {
                 Mode::INSERT => 0,
-                _ => 1
+                _ => 1,
             };
 
             let x_val = self.e.textbuffer.line_len(self.cursor.y as usize - 1) - include_line_ends;
@@ -115,16 +133,16 @@ impl Screen {
 
     pub fn move_right(&mut self) {
         let include_line_ends = match self.e.mode {
-                Mode::INSERT => 1,
-                _ => 0
+            Mode::INSERT => 1,
+            _ => 0,
         };
 
-        if self.cursor.x + 1 < self.e.textbuffer.line_len(self.cursor.y as usize) + include_line_ends {
+        if self.cursor.x + 1
+            < self.e.textbuffer.line_len(self.cursor.y as usize) + include_line_ends
+        {
             queue!(self.w, cursor::MoveRight(1)).unwrap();
             self.cursor.move_right(1, self.dim.w);
         } else if self.cursor.y + 1 < self.e.textbuffer.len_lines() as u16 {
-
-
             queue!(self.w, cursor::MoveTo(0, self.cursor.y + 1)).unwrap();
 
             self.cursor.x = 0;
@@ -136,10 +154,11 @@ impl Screen {
         if self.cursor.x == 0 && self.cursor.y != 0 {
             // Goto end of line above.
 
-            let line_char_len = self.e.textbuffer
-                .line_len((self.cursor.y - 1) as usize);
+            let line_char_len = self.e.textbuffer.line_len((self.cursor.y - 1) as usize);
 
-            self.e.textbuffer.remove_line_break((self.cursor.y - 1) as usize);
+            self.e
+                .textbuffer
+                .remove_line_break((self.cursor.y - 1) as usize);
             self.cursor.move_up(1, 0);
             self.cursor.move_right(line_char_len, self.dim.w);
 
@@ -149,8 +168,8 @@ impl Screen {
                 cursor::MoveUp(1),
                 cursor::MoveRight(line_char_len),
                 cursor::Show,
-            ).unwrap();
-
+            )
+            .unwrap();
         } else {
             // backspace to left
             self.e.textbuffer.remove(self.cursor.x, self.cursor.y);
@@ -162,7 +181,8 @@ impl Screen {
                 Print(' '),
                 cursor::MoveLeft(1),
                 cursor::Show,
-            ).unwrap();
+            )
+            .unwrap();
         }
     }
 
@@ -170,15 +190,19 @@ impl Screen {
         self.e.textbuffer.new_line(self.cursor.x, self.cursor.y);
         self.cursor.x = 0;
         self.cursor.move_down(1, self.dim.h);
-        queue!(self.w,
-               cursor::Hide,
-               cursor::MoveToNextLine(1),
-               cursor::Show
-            ).unwrap();
+        queue!(
+            self.w,
+            cursor::Hide,
+            cursor::MoveToNextLine(1),
+            cursor::Show
+        )
+        .unwrap();
     }
 
     pub fn insert_char(&mut self, chr: char) {
-        self.e.textbuffer.insert_char(self.cursor.x, self.cursor.y, chr);
+        self.e
+            .textbuffer
+            .insert_char(self.cursor.x, self.cursor.y, chr);
         self.move_right();
     }
 
@@ -189,16 +213,19 @@ impl Screen {
             terminal::EnterAlternateScreen,
             cursor::MoveTo(0, 0),
             style::ResetColor,
-        ).unwrap();
+        )
+        .unwrap();
         for idx in 0..self.e.textbuffer.len_lines() {
-            if idx == self.dim.h as usize { break; }
+            if idx == self.dim.h as usize {
+                break;
+            }
             queue!(
                 self.w,
                 Print(format!("{}\r", self.e.textbuffer.get_line(idx))),
-                ).unwrap();
+            )
+            .unwrap();
         }
         queue!(self.w, cursor::MoveTo(0, 0)).unwrap();
-
     }
 
     pub fn end(&mut self) {
@@ -206,54 +233,13 @@ impl Screen {
     }
 
     pub fn resize(&mut self, x: u16, y: u16) {
-        queue!(
-            self.w,
-            terminal::SetSize(x, y),
-            Clear(ClearType::All),
-            ).unwrap();
+        queue!(self.w, terminal::SetSize(x, y), Clear(ClearType::All),).unwrap();
     }
-
-    fn editor_alert(&mut self, msg: &str) {
-        queue!(
-            self.w,
-            cursor::SavePosition,
-            cursor::MoveTo(0, self.dim.h - 1),
-            Clear(ClearType::CurrentLine),
-            style::Print(msg),
-            cursor::RestorePosition,
-        )
-        .unwrap();
-    }
-
-
 }
 
 /*** private ***/
 
 impl Screen {
-    fn render_line(&mut self, y: u16, line: &str) {
-        queue!(
-            self.w,
-            cursor::MoveTo(0, y),
-            Print(line),
-            ).unwrap();
-    }
-
-    fn render_char(&mut self, chr: char) {
-        queue!(
-            self.w,
-            cursor::MoveTo(0, self.cursor.y),
-            Print(chr),
-            ).unwrap();
-    }
-
-    fn render_text(&mut self) {
-        queue!(
-            self.w,
-            cursor::MoveTo(0, self.cursor.y),
-            Print(self.e.textbuffer.get_line(self.cursor.y as usize)),
-            ).unwrap();
-    }
 
     fn render_file(&mut self) {
         queue!(
@@ -263,7 +249,8 @@ impl Screen {
             Clear(ClearType::All),
             Print(self.e.textbuffer.text.slice(..)),
             cursor::RestorePosition,
-            ).unwrap();
+        )
+        .unwrap();
     }
 
     fn render_empty_lines(&mut self) {
@@ -286,10 +273,10 @@ impl Screen {
         ).unwrap();
     }
 
-    fn welcome_message(&mut self, width: u16, height: u16) {
+    fn welcome_message(&mut self) {
         for (y, msg) in WELCOME.split("\n").enumerate() {
-            let x = width / 2 - ((msg.len() as u16) / 2);
-            let y = height / 3 + y as u16;
+            let x = self.dim.w / 2 - ((msg.len() as u16) / 2);
+            let y = self.dim.h / 3 + y as u16;
             queue!(
                 self.w,
                 cursor::SavePosition,
@@ -308,7 +295,10 @@ impl Screen {
             cursor::SavePosition,
             cursor::MoveTo(0, self.dim.h - 2),
             Clear(ClearType::CurrentLine),
-            style::Print(format!("{}, location: {}/{}", mode, self.cursor.x, self.cursor.y)),
+            style::Print(format!(
+                "{}, location: {}/{}",
+                mode, self.cursor.x, self.cursor.y
+            )),
             cursor::RestorePosition,
             style::ResetColor
         )
@@ -329,6 +319,18 @@ impl Screen {
         )
         .unwrap();
     }
+
+    fn editor_alert(&mut self, msg: &str) {
+        queue!(
+            self.w,
+            cursor::SavePosition,
+            cursor::MoveTo(0, self.dim.h - 1),
+            Clear(ClearType::CurrentLine),
+            style::Print(msg),
+            cursor::RestorePosition,
+        )
+        .unwrap();
+    }
 }
 
 impl Screen {
@@ -338,16 +340,4 @@ impl Screen {
             Err(e) => panic!("Terminal Size ERROR: {}", e),
         }
     }
-
-    fn get_curser_postion() -> Position {
-        match cursor::position() {
-            Ok(v) => Position::new(v.0, v.1),
-            Err(e) => panic!("Curser Postion ERROR: {}", e),
-        }
-    }
 }
-
-
-
-
-

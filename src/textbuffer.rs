@@ -1,10 +1,9 @@
 extern crate ropey;
 
-use std::fs::{File, metadata};
+use std::fs::{metadata, File};
 use std::io::{BufReader, BufWriter, ErrorKind};
-use std::ops::Range;
 
-use ropey::iter::{Bytes, Chars, Chunks, Lines};
+use ropey::iter::Lines;
 use ropey::{Rope, RopeSlice};
 
 pub struct TextBuffer {
@@ -30,13 +29,12 @@ impl TextBuffer {
                         }
                     })))
                     .unwrap()
-                    // Able to just use unwrap here because the file should always exist due to the read check earlier
-                }
-                else {
+                // Able to just use unwrap here because the file should always exist due to the read check earlier
+                } else {
                     // If the file doesn't exist just return a new rope and it will create the file during the first save
                     Rope::new()
                 }
-            },
+            }
             None => Rope::new(),
         };
         Self {
@@ -50,16 +48,9 @@ impl TextBuffer {
         self.text.line(idx)
     }
 
-    pub fn line_to_str(&mut self, idx: usize) -> &str {
-        self.text.line(idx)
-            .as_str()
-            .unwrap()
-            .trim_end_matches("\n")
-            .trim_end_matches("\r")
-    }
-
     pub fn line_len(&self, idx: usize) -> u16 {
-        self.text.line(idx)
+        self.text
+            .line(idx)
             .as_str()
             .unwrap()
             .trim_end_matches("\n")
@@ -67,24 +58,8 @@ impl TextBuffer {
             .len() as u16
     }
 
-    pub fn bytes<'a>(&'a self) -> Bytes<'a> {
-        self.text.bytes()
-    }
-
-    pub fn chars<'a>(&'a self) -> Chars<'a> {
-        self.text.chars()
-    }
-
     pub fn lines<'a>(&'a self) -> Lines<'a> {
         self.text.lines()
-    }
-
-    pub fn chunks<'a>(&'a self) -> Chunks<'a> {
-        self.text.chunks()
-    }
-
-    pub fn len_chars(&self) -> usize {
-        self.text.len_chars()
     }
 
     pub fn len_lines(&self) -> usize {
@@ -99,34 +74,11 @@ impl TextBuffer {
         self.dirty = true;
     }
 
-    pub fn edit(&mut self, start: usize, end: usize, text: &str) {
-        if start != end {
-            self.text.remove(start..end);
-        }
-        if text.len() > 0 {
-            self.text.insert(start, text);
-        }
-        self.dirty = true;
-    }
 
     pub fn remove_line_break(&mut self, line_num: usize) {
-        let idx = self.text.line_to_char(line_num);
-        let start = self.text.line(line_num)
-            .as_str()
-            .unwrap()
-            .trim_end_matches("\n")
-            .trim_end_matches("\r")
-            .len() as usize;
-        let end = self.text.line(line_num)
-            .as_str()
-            .unwrap()
-            .len() as usize;
+        let start = self.line_len(line_num) as usize;
+        let end = self.text.line(line_num).as_str().unwrap().len() as usize;
         self.text.remove(start..end);
-    }
-
-    pub fn insert_line(&mut self, idx: usize, text: &str) {
-        self.text.remove(idx..idx + text.len());
-        self.text.insert(idx, text);
     }
 
     pub fn insert_char(&mut self, x: u16, y: u16, chr: char) {

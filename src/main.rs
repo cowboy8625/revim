@@ -1,41 +1,35 @@
 /***   ReVim "Rust Edition Vim"   ***/
 
+mod dimensions;
 mod editor;
+mod position;
 mod screen;
 mod textbuffer;
-mod position;
-mod dimensions;
 
 use std::env;
 
-
-use std::{io::stdout, time::Duration};
 use crossterm::{
-    cursor,
     event::{poll, read, Event, KeyCode, KeyEvent, KeyModifiers},
-    terminal,
     terminal::{disable_raw_mode, enable_raw_mode},
     Result,
 };
+use std::{io::stdout, time::Duration};
 
-use editor::{Editor, ModeSwitch, Mode};
+use editor::{Editor, Mode, ModeSwitch};
 use screen::Screen;
-use textbuffer::TextBuffer;
-use position::Position;
-use dimensions::Dimensions;
+
 
 fn input_command_mode(s: &mut Screen, k: KeyEvent) {
     //KeyEvent
     match k {
         KeyEvent {
-            code: KeyCode::Esc,
-            ..
+            code: KeyCode::Esc, ..
         } => s.e.normal_mode(),
         KeyEvent {
             code: KeyCode::Char('h'),
             modifiers: KeyModifiers::CONTROL,
         } => {
-                //TODO fix this!
+            //TODO fix this!
             s.e.current_command.pop();
         }
         KeyEvent { code, .. } => match code {
@@ -67,14 +61,10 @@ fn input_normal_mode(s: &mut Screen, k: KeyEvent) {
             KeyCode::Char('i') => {
                 s.e.insert_mode();
             }
-            KeyCode::Down |
-            KeyCode::Char('j') => s.move_down(),
-            KeyCode::Up |
-            KeyCode::Char('k') => s.move_up(),
-            KeyCode::Left |
-            KeyCode::Char('h') => s.move_left(),
-            KeyCode::Right |
-            KeyCode::Char('l') => s.move_right(),
+            KeyCode::Down | KeyCode::Char('j') => s.move_down(),
+            KeyCode::Up | KeyCode::Char('k') => s.move_up(),
+            KeyCode::Left | KeyCode::Char('h') => s.move_left(),
+            KeyCode::Right | KeyCode::Char('l') => s.move_right(),
             _ => {}
         },
     }
@@ -83,14 +73,13 @@ fn input_normal_mode(s: &mut Screen, k: KeyEvent) {
 fn input_insert_mode(s: &mut Screen, k: KeyEvent) {
     match k {
         KeyEvent {
-            code: KeyCode::Esc,
-            ..
+            code: KeyCode::Esc, ..
         } => s.e.normal_mode(),
         KeyEvent {
             code: KeyCode::Char('h'),
             modifiers: KeyModifiers::CONTROL,
-        } |
-        KeyEvent {
+        }
+        | KeyEvent {
             code: KeyCode::Backspace,
             ..
         } => {
@@ -125,22 +114,21 @@ fn input_insert_mode(s: &mut Screen, k: KeyEvent) {
 
 fn input_events(s: &mut Screen) {
     match read() {
-        Ok(Event::Key(key)) => {
-
-            match s.e.mode {
-                Mode::NORMAL => input_normal_mode(s, key),
-                Mode::COMMAND => input_command_mode(s, key),
-                Mode::INSERT => input_insert_mode(s, key),
-            }
-        }
+        Ok(Event::Key(key)) => match s.e.mode {
+            Mode::NORMAL => input_normal_mode(s, key),
+            Mode::COMMAND => input_command_mode(s, key),
+            Mode::INSERT => input_insert_mode(s, key),
+        },
         Ok(Event::Resize(x, y)) => s.resize(x, y),
-        Ok(Event::Mouse(_)) => {},
+        Ok(Event::Mouse(_)) => {}
         Err(e) => panic!("This wont run minecraft: {}", e),
     }
 }
-
+/*
+   let key_map = KeyMap::new();
+   key_map.
+*/
 /*** init ***/
-
 
 fn main() -> Result<()> {
     let mut args = env::args();
@@ -168,4 +156,3 @@ fn main() -> Result<()> {
 
     disable_raw_mode()
 }
-
