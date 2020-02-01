@@ -36,12 +36,10 @@ impl Screen {
     pub fn update(&mut self) {
 
         self.render_file();
-        // self.welcome_message();
+        self.welcome_message();
         self.render_empty_lines();
         self.status_bar_mode();
-        if self.e.is_command() {
-            self.message_bar_display(self.dim.h);
-        }
+        self.message_bar_display(self.dim.h);
         self.w.flush().unwrap();
     }
 
@@ -239,6 +237,7 @@ impl Screen {
 
     fn render_empty_lines(&mut self) {
         let start = self.e.textbuffer.lines().len() as u16;
+
         queue!(
             self.w,
             cursor::SavePosition,
