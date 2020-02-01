@@ -7,8 +7,8 @@ use std::cmp::{min};
 
 use crossterm::{
     cursor,
-    style::{Print},
-    execute, queue, style, terminal,
+    style::{Print, self, Colorize},
+    execute, queue, terminal,
     terminal::{Clear, ClearType},
 };
 
@@ -50,6 +50,8 @@ impl Screen {
         if self.e.is_command() {
             self.message_bar_display(self.dim.h);
         }
+
+        self.render_empty_lines();
 
         self.w.flush().unwrap();
     }
@@ -262,6 +264,26 @@ impl Screen {
             Print(self.e.textbuffer.text.slice(..)),
             cursor::RestorePosition,
             ).unwrap();
+    }
+
+    fn render_empty_lines(&mut self) {
+        queue!(
+            self.w,
+            cursor::SavePosition
+        ).unwrap();
+
+        for i in self.e.textbuffer.lines().len() as u16..self.dim.h - 2 {
+            queue!(
+                self.w,
+                cursor::MoveTo(0, i),
+                Print("~".cyan())
+            ).unwrap();
+        }
+
+        queue!(
+            self.w,
+            cursor::RestorePosition
+        ).unwrap();
     }
 
     fn welcome_message(&mut self, width: u16, height: u16) {
