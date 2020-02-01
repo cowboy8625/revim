@@ -52,8 +52,21 @@ impl TextBuffer {
         self.text.line(idx)
     }
 
+    pub fn line_to_str(&mut self, idx: usize) -> &str {
+        self.text.line(idx)
+            .as_str()
+            .unwrap()
+            .trim_end_matches("\n")
+            .trim_end_matches("\r")
+    }
+
     pub fn line_len(&self, idx: usize) -> u16 {
-        self.text.line(idx as usize).as_str().unwrap().trim_end_matches("\n").trim_end_matches("\r").len() as u16
+        self.text.line(idx)
+            .as_str()
+            .unwrap()
+            .trim_end_matches("\n")
+            .trim_end_matches("\r")
+            .len() as u16
     }
 
     pub fn bytes<'a>(&'a self) -> Bytes<'a> {
@@ -96,6 +109,26 @@ impl TextBuffer {
             self.text.insert(start, text);
         }
         self.dirty = true;
+    }
+
+    pub fn remove_line_break(&mut self, line_num: usize) {
+        let idx = self.text.line_to_char(line_num);
+        let start = self.text.line(line_num)
+            .as_str()
+            .unwrap()
+            .trim_end_matches("\n")
+            .trim_end_matches("\r")
+            .len() as usize;
+        let end = self.text.line(line_num)
+            .as_str()
+            .unwrap()
+            .len() as usize;
+        self.text.remove(start..end);
+    }
+
+    pub fn insert_line(&mut self, idx: usize, text: &str) {
+        self.text.remove(idx..idx + text.len());
+        self.text.insert(idx, text);
     }
 
     pub fn insert_char(&mut self, x: u16, y: u16, chr: char) {

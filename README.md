@@ -8,7 +8,7 @@ ReVim stands for "Rust Edition Vim".  I wanted a Simple vim that would compile a
 like in windows. We all know Vim can be ran on windows but its not the easiest to do.
 ALSO I just really wanted to make a text editor, so this was a cool project to do.
 Currently ReVim is in a very early statge of progress.  If you would like to contribute
-to ReVim submite a merge request.
+to ReVim submite a pull request.
 
 
 

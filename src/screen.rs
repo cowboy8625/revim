@@ -34,24 +34,23 @@ impl Screen {
     }
 
     pub fn update(&mut self) {
-        // self.clear();
-        // self.welcome_message(w, h);
-        //problem is in this blocp
         let (x, y) = match cursor::position() {
             Ok(v) => (v.0, v.1),
             Err(e) => panic!("Curser Postion ERROR: {}", e),
         };
         let msg = format!("X: {}, y: {}", x, y);
-        self.editor_alert(&msg);
 
-        if !self.e.textbuffer.is_empty() && self.e.textbuffer.dirty{
+        if !self.e.textbuffer.is_empty() && self.e.textbuffer.dirty {
             self.render_file();
         }
 
+        self.editor_alert(&msg);
         self.status_bar_mode();
+
         if self.e.is_command() {
             self.message_bar_display(self.dim.h);
         }
+
         self.w.flush().unwrap();
     }
 
@@ -132,20 +131,37 @@ impl Screen {
     }
 
     pub fn backspace(&mut self) {
-        self.e.textbuffer.remove(self.cursor.x, self.cursor.y);
-        if self.cursor.x == 0 {
-            //  Goto end of line above.
+        if self.cursor.x == 0 && self.cursor.y != 0 {
+            // Goto end of line above.
+
+            let line_char_len = self.e.textbuffer
+                .line_len((self.cursor.y - 1) as usize);
+
+            self.e.textbuffer.remove_line_break((self.cursor.y - 1) as usize);
+            self.cursor.move_up(1, 0);
+            self.cursor.move_right(line_char_len, self.dim.w);
+
+            queue!(
+                self.w,
+                cursor::Hide,
+                cursor::MoveUp(1),
+                cursor::MoveRight(line_char_len),
+                cursor::Show,
+            ).unwrap();
+
         } else {
+            // backspace to left
+            self.e.textbuffer.remove(self.cursor.x, self.cursor.y);
             self.cursor.move_left(1, 0);
+            queue!(
+                self.w,
+                cursor::Hide,
+                cursor::MoveLeft(1),
+                Print(' '),
+                cursor::MoveLeft(1),
+                cursor::Show,
+            ).unwrap();
         }
-        queue!(
-            self.w,
-            cursor::Hide,
-            cursor::MoveLeft(1),
-            Print(' '),
-            cursor::MoveLeft(1),
-            cursor::Show,
-        ).unwrap();
     }
 
     pub fn line_break(&mut self) {
@@ -200,7 +216,7 @@ impl Screen {
             self.w,
             cursor::SavePosition,
             cursor::MoveTo(0, self.dim.h - 1),
-            Clear(ClearType::CurrentLine),
+            // Clear(ClearType::CurrentLine),
             style::Print(msg),
             cursor::RestorePosition,
         )
@@ -230,14 +246,10 @@ impl Screen {
     }
 
     fn render_text(&mut self) {
-        let (x, y) = match cursor::position() {
-            Ok(v) => (v.0, v.1),
-            Err(e) => panic!("Curser Postion ERROR: {}", e),
-        };
         queue!(
             self.w,
-            cursor::MoveTo(0, y),
-            Print(self.e.textbuffer.get_line(y as usize)),
+            cursor::MoveTo(0, self.cursor.y),
+            Print(self.e.textbuffer.get_line(self.cursor.y as usize)),
             ).unwrap();
     }
 
@@ -273,7 +285,7 @@ impl Screen {
             self.w,
             cursor::SavePosition,
             cursor::MoveTo(0, self.dim.h - 2),
-            Clear(ClearType::CurrentLine),
+            // Clear(ClearType::CurrentLine),
             style::Print(format!("{}, location: {}/{}", mode, self.cursor.x, self.cursor.y)),
             cursor::RestorePosition,
             style::ResetColor
@@ -286,7 +298,7 @@ impl Screen {
             self.w,
             cursor::SavePosition,
             cursor::MoveTo(0, y),
-            Clear(ClearType::CurrentLine),
+            // Clear(ClearType::CurrentLine),
             style::Print(format!(
                 "{}",
                 self.e.current_command.iter().map(|c| c).collect::<String>()
@@ -294,10 +306,6 @@ impl Screen {
             cursor::RestorePosition,
         )
         .unwrap();
-    }
-
-    fn clear(&mut self) {
-        queue!(self.w, Clear(ClearType::All)).unwrap();
     }
 }
 

@@ -63,13 +63,13 @@ fn input_normal_mode(s: &mut Screen, k: KeyEvent) {
             KeyCode::Char('i') => {
                 s.e.insert_mode();
             }
-			KeyCode::Down |
+            KeyCode::Down |
             KeyCode::Char('j') => s.move_down(),
-			KeyCode::Up |
+            KeyCode::Up |
             KeyCode::Char('k') => s.move_up(),
-			KeyCode::Left |
+            KeyCode::Left |
             KeyCode::Char('h') => s.move_left(),
-			KeyCode::Right |
+            KeyCode::Right |
             KeyCode::Char('l') => s.move_right(),
             _ => {}
         },
@@ -81,6 +81,10 @@ fn input_insert_mode(s: &mut Screen, k: KeyEvent) {
         KeyEvent {
             code: KeyCode::Char('h'),
             modifiers: KeyModifiers::CONTROL,
+        } |
+        KeyEvent {
+            code: KeyCode::Backspace,
+            ..
         } => {
             // TODO Fix backspace/delete
             s.backspace();
