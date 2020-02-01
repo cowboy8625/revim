@@ -28,6 +28,10 @@ fn input_command_mode(s: &mut Screen, k: KeyEvent) {
     //KeyEvent
     match k {
         KeyEvent {
+            code: KeyCode::Esc,
+            ..
+        } => s.e.normal_mode(),
+        KeyEvent {
             code: KeyCode::Char('h'),
             modifiers: KeyModifiers::CONTROL,
         } => {
@@ -79,6 +83,10 @@ fn input_normal_mode(s: &mut Screen, k: KeyEvent) {
 fn input_insert_mode(s: &mut Screen, k: KeyEvent) {
     match k {
         KeyEvent {
+            code: KeyCode::Esc,
+            ..
+        } => s.e.normal_mode(),
+        KeyEvent {
             code: KeyCode::Char('h'),
             modifiers: KeyModifiers::CONTROL,
         } |
@@ -118,10 +126,6 @@ fn input_insert_mode(s: &mut Screen, k: KeyEvent) {
 fn input_events(s: &mut Screen) {
     match read() {
         Ok(Event::Key(key)) => {
-            // Once Command mode works i can remove this if statement
-            if key.code == KeyCode::Esc {
-                s.e.quit();
-            }
 
             match s.e.mode {
                 Mode::NORMAL => input_normal_mode(s, key),

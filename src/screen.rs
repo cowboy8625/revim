@@ -216,7 +216,7 @@ impl Screen {
             self.w,
             cursor::SavePosition,
             cursor::MoveTo(0, self.dim.h - 1),
-            // Clear(ClearType::CurrentLine),
+            Clear(ClearType::CurrentLine),
             style::Print(msg),
             cursor::RestorePosition,
         )
@@ -285,7 +285,7 @@ impl Screen {
             self.w,
             cursor::SavePosition,
             cursor::MoveTo(0, self.dim.h - 2),
-            // Clear(ClearType::CurrentLine),
+            Clear(ClearType::CurrentLine),
             style::Print(format!("{}, location: {}/{}", mode, self.cursor.x, self.cursor.y)),
             cursor::RestorePosition,
             style::ResetColor
@@ -298,7 +298,7 @@ impl Screen {
             self.w,
             cursor::SavePosition,
             cursor::MoveTo(0, y),
-            // Clear(ClearType::CurrentLine),
+            Clear(ClearType::CurrentLine),
             style::Print(format!(
                 "{}",
                 self.e.current_command.iter().map(|c| c).collect::<String>()

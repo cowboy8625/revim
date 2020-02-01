@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 extern crate ropey;
 
 use std::fs::{File, metadata};
