@@ -6,9 +6,7 @@ use std::cmp::min;
 use std::io::{BufReader, BufWriter, Stdout, Write};
 
 use crossterm::{
-    cursor,
-    style::{Print, self, Colorize},
-    execute, queue, terminal,
+    cursor, style, execute, queue, terminal,
     terminal::{Clear, ClearType},
 };
 
@@ -37,29 +35,13 @@ impl Screen {
 
     pub fn update(&mut self) {
 
-        if !self.e.textbuffer.is_empty() && self.e.textbuffer.dirty {
-            self.render_file();
-        }
-
-        // All this could be cleaned up.
-        if self.can_welcome {
-            if self.e.is_insert() {
-                queue!(self.w, Clear(ClearType::All)).unwrap();
-            } else {
-                self.welcome_message();
-            }
-            if self.e.textbuffer.dirty {
-                self.can_welcome = false;
-            }
-        }
-
+        self.render_file();
+        // self.welcome_message();
         self.render_empty_lines();
         self.status_bar_mode();
         if self.e.is_command() {
             self.message_bar_display(self.dim.h);
         }
-
-
         self.w.flush().unwrap();
     }
 
@@ -178,7 +160,7 @@ impl Screen {
                 self.w,
                 cursor::Hide,
                 cursor::MoveLeft(1),
-                Print(' '),
+                style::Print(' '),
                 cursor::MoveLeft(1),
                 cursor::Show,
             )
@@ -221,7 +203,7 @@ impl Screen {
             }
             queue!(
                 self.w,
-                Print(format!("{}\r", self.e.textbuffer.get_line(idx))),
+                style::Print(format!("{}\r", self.e.textbuffer.get_line(idx))),
             )
             .unwrap();
         }
@@ -242,49 +224,65 @@ impl Screen {
 impl Screen {
 
     fn render_file(&mut self) {
-        queue!(
-            self.w,
-            cursor::SavePosition,
-            cursor::MoveTo(0, 0),
-            Clear(ClearType::All),
-            Print(self.e.textbuffer.text.slice(..)),
-            cursor::RestorePosition,
-        )
-        .unwrap();
+        if !self.e.textbuffer.is_empty() && self.e.textbuffer.dirty {
+            queue!(
+                self.w,
+                cursor::SavePosition,
+                cursor::MoveTo(0, 0),
+                Clear(ClearType::All),
+                style::Print(self.e.textbuffer.text.slice(..)),
+                cursor::RestorePosition,
+            )
+            .unwrap();
+        }
     }
 
     fn render_empty_lines(&mut self) {
+        let start = self.e.textbuffer.lines().len() as u16;
         queue!(
             self.w,
-            cursor::SavePosition
+            cursor::SavePosition,
+            cursor::Hide,
+            style::SetForegroundColor(style::Color::Cyan),
         ).unwrap();
 
-        for i in self.e.textbuffer.lines().len() as u16..self.dim.h - 2 {
+        for i in start..self.dim.h - 2 {
             queue!(
                 self.w,
-                cursor::MoveTo(0, i),
-                Print("~".cyan())
+                cursor::MoveToNextLine(1),
+                style::Print('~')
             ).unwrap();
         }
 
         queue!(
             self.w,
-            cursor::RestorePosition
+            cursor::RestorePosition,
+            cursor::Show,
+            style::ResetColor,
         ).unwrap();
     }
 
     fn welcome_message(&mut self) {
-        for (y, msg) in WELCOME.split("\n").enumerate() {
-            let x = self.dim.w / 2 - ((msg.len() as u16) / 2);
-            let y = self.dim.h / 3 + y as u16;
-            queue!(
-                self.w,
-                cursor::SavePosition,
-                cursor::MoveTo(x, y),
-                style::Print(msg),
-                cursor::RestorePosition,
-            )
-            .unwrap();
+        if self.can_welcome {
+            if self.e.is_insert() {
+                queue!(self.w, Clear(ClearType::All)).unwrap();
+            } else {
+                for (y, msg) in WELCOME.split("\n").enumerate() {
+                    let x = self.dim.w / 2 - ((msg.len() as u16) / 2);
+                    let y = self.dim.h / 3 + y as u16;
+                    queue!(
+                        self.w,
+                        cursor::SavePosition,
+                        cursor::MoveTo(x, y),
+                        style::Print(msg),
+                        cursor::RestorePosition,
+                    )
+                    .unwrap();
+                }
+            }
+            if self.e.textbuffer.dirty {
+                self.can_welcome = false;
+            }
         }
     }
 
@@ -306,18 +304,20 @@ impl Screen {
     }
 
     fn message_bar_display(&mut self, y: u16) {
-        queue!(
-            self.w,
-            cursor::SavePosition,
-            cursor::MoveTo(0, y),
-            Clear(ClearType::CurrentLine),
-            style::Print(format!(
-                "{}",
-                self.e.current_command.iter().map(|c| c).collect::<String>()
-            )),
-            cursor::RestorePosition,
-        )
-        .unwrap();
+        if self.e.is_command() {
+            queue!(
+                self.w,
+                cursor::SavePosition,
+                cursor::MoveTo(0, y),
+                Clear(ClearType::CurrentLine),
+                style::Print(format!(
+                    "{}",
+                    self.e.current_command.iter().map(|c| c).collect::<String>()
+                )),
+                cursor::RestorePosition,
+            )
+            .unwrap();
+        }
     }
 
     fn editor_alert(&mut self, msg: &str) {
