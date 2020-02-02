@@ -248,7 +248,7 @@ impl Screen {
         for i in start..self.dim.h - 2 {
             queue!(
                 self.w,
-                cursor::MoveToNextLine(1),
+                cursor::MoveTo(0, i),
                 style::Print('~')
             ).unwrap();
         }
