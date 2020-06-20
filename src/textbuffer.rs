@@ -1,104 +1,77 @@
-extern crate ropey;
+// textbuffer.rs holds all rope data and logic.
+//
+// External Crates
+use ropey::Rope;
 
-use std::fs::{metadata, File};
-use std::io::{BufReader, BufWriter, ErrorKind};
+// Standerd Library Crates
+use std::fs::{metadata, OpenOptions};
+use std::io::BufReader;
 
-use ropey::iter::Lines;
-use ropey::{Rope, RopeSlice};
-
+#[derive(Debug)]
 pub struct TextBuffer {
-    pub text: Rope,
-    pub path: Option<String>,
-    pub dirty: bool,
+    text: Rope,
+    path: Option<String>,
 }
 
 impl TextBuffer {
     pub fn from_path(path: Option<String>) -> Self {
-        let text = match &path {
-            Some(n) => {
-                // See if the file already exists
-                if metadata(&n).is_ok() {
-                    // If the file exists read from it
-                    Rope::from_reader(BufReader::new(File::open(&n).unwrap_or_else(|error| {
-                        if error.kind() == ErrorKind::NotFound {
-                            File::create(n).unwrap_or_else(|error| {
-                                panic!("Problem creating the file: {:?}", error);
-                            })
-                        } else {
-                            panic!("Problem opening the file: {:?}", error);
-                        }
-                    })))
-                    .unwrap()
-                // Able to just use unwrap here because the file should always exist due to the read check earlier
-                } else {
-                    // If the file doesn't exist just return a new rope and it will create the file during the first save
-                    Rope::new()
-                }
-            }
-            None => Rope::new(),
-        };
-        Self {
-            text: text,
-            path: path,
-            dirty: false,
-        }
+        let text = path
+            .as_ref()
+            .filter(|path| metadata(&path).is_ok())
+            .map_or_else(Rope::new, |path| {
+                let file = OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create(true)
+                    .open(path)
+                    .expect("Problem opening the file");
+
+                Rope::from_reader(BufReader::new(file)).unwrap()
+            });
+
+        Self { text, path }
     }
 
-    pub fn get_line<'a>(&'a self, idx: usize) -> RopeSlice<'a> {
-        self.text.line(idx)
-    }
-
-    pub fn line_len(&self, idx: usize) -> u16 {
+    pub fn line_len(&self, idx: usize) -> usize {
         self.text
             .line(idx)
             .as_str()
-            .unwrap()
-            .trim_end_matches("\n")
-            .trim_end_matches("\r")
-            .len() as u16
-    }
-
-    pub fn lines<'a>(&'a self) -> Lines<'a> {
-        self.text.lines()
+            .unwrap_or("")
+            .trim_end_matches(|c| c == '\n' || c == '\r')
+            .len()
     }
 
     pub fn len_lines(&self) -> usize {
+        // Returns total of lines in file.
         self.text.len_lines()
     }
 
-    pub fn remove(&mut self, x: u16, y: u16) {
-        let line_idx = self.text.line_to_char(y as usize);
-        let end = line_idx + x as usize;
-        let start = if end > 0 { end - 1 } else { end };
-        self.text.remove(start..end);
-        self.dirty = true;
+    pub fn line_to_line(&self, start: usize, end: usize) -> String {
+        //Returns String from file.
+        //from string line to ending line.
+        //returns line == end
+        let e = self.text.len_lines();
+        let end = if end > e { e } else { end };
+        let mut lines = String::new();
+        (start..=end - 1).for_each(|idx| {
+            lines.extend(self.text.line(idx).chars().filter(|&c| c != '\n'));
+            lines.push_str("\r\n");
+        });
+        lines
     }
 
+    pub fn _get_text(&self) -> String {
+        // Returns all of the file.
+        self.text.slice(..).to_string()
+    }
 
-    pub fn remove_line_break(&mut self, line_num: usize) {
-        let start = self.line_len(line_num) as usize;
-        let end = self.text.line(line_num).as_str().unwrap().len() as usize;
-        self.text.remove(start..end);
+    pub fn _get_path(&self) -> String {
+        // This may need to be removed.
+        self.path.as_deref().unwrap_or("No Path").to_owned()
     }
 
     pub fn insert_char(&mut self, x: u16, y: u16, chr: char) {
         let line_index = self.text.line_to_char(y as usize);
         self.text.insert_char(line_index + x as usize, chr);
-        self.dirty = true;
-    }
-
-    pub fn new_line(&mut self, x: u16, y: u16) {
-        let line_index = self.text.line_to_char(y as usize);
-        self.text.insert_char(line_index + x as usize, '\n');
-        self.text.insert_char(line_index + x as usize, '\r');
-        self.dirty = true;
-    }
-
-    pub fn is_empty(&self) -> bool {
-        if self.text.len_chars() == 0 {
-            true
-        } else {
-            false
-        }
     }
 }
