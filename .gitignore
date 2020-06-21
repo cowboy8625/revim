@@ -3,3 +3,5 @@
 **/*.rs.bk
 *.sh
 *.txt
+*.py
+wikichat.md

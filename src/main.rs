@@ -88,10 +88,24 @@ impl ReVim {
         }
     }
 
-    fn scroll_up(&mut self) -> Result<()> {
-        self.view.0 -= 1;
-        self.view.1 -= 1;
-        self.cursor.glb_y -= 1;
+    fn scroll_up(&mut self, scroll_num: u16, curser: &Direction) -> Result<()> {
+        self.view.0 -= scroll_num;
+        self.view.1 -= scroll_num;
+        self.cursor.glb_y -= scroll_num;
+        match curser {
+            Direction::Up(n) => {
+                if self.cursor.loc_y < self.dim.0 {
+                    self.cursor.loc_y += n;
+                }
+            },
+            Direction::Down(n) => {
+                if self.cursor.loc_y > 0 {
+                    self.cursor.loc_y -= n;
+                }
+            },
+            _ => {},
+        }
+        move_to(&mut self.stdout, self.cursor.loc())?;
         let lines = self
             .filedata
             .line_to_line(self.view.0 as usize, self.view.1 as usize);
@@ -106,10 +120,25 @@ impl ReVim {
         Ok(())
     }
 
-    fn scroll_down(&mut self) -> Result<()> {
-        self.view.0 += 1;
-        self.view.1 += 1;
-        self.cursor.glb_y += 1;
+    fn scroll_down(&mut self, scroll_num: u16, curser: &Direction) -> Result<()> {
+        // Scroll glob_y down
+        // Keep Curser in same location
+        self.view.0 += scroll_num;
+        self.view.1 += scroll_num;
+        match curser {
+            Direction::Up(n) => {
+                if self.cursor.loc_y > 0 {
+                    self.cursor.loc_y -= n;
+                }
+            },
+            Direction::Down(n) => {
+                if self.cursor.loc_y < self.dim.1 {
+                    self.cursor.loc_y += n;
+                }
+            },
+            _ => {},
+        }
+        move_to(&mut self.stdout, self.cursor.loc())?;
         let lines = self
             .filedata
             .line_to_line(self.view.0 as usize, self.view.1 as usize);
@@ -134,7 +163,7 @@ impl ReVim {
                 self.cursor.glb_y += 1;
                 move_to(&mut self.stdout, self.cursor.loc())?;
             } else {
-                self.scroll_down()?;
+                self.scroll_down(1, &Direction::Down(0))?;
             }
             self.cursor.loc_x = std::cmp::max(self.cursor.loc_x, self.cursor.max_x);
         }
@@ -152,7 +181,7 @@ impl ReVim {
                 self.cursor.glb_y -= 1;
                 move_to(&mut self.stdout, self.cursor.loc())?;
             } else {
-                self.scroll_up()?;
+                self.scroll_up(1, &Direction::Up(0))?;
             }
             self.cursor.loc_x = std::cmp::max(self.cursor.loc_x, self.cursor.max_x);
         }
@@ -216,10 +245,10 @@ impl ReVim {
                     Direction::Right(_) => self.cursor_right()?,
                 };
             }
-            EditorEvent::Scroll(d) => {
-                match d {
-                    Direction::Up(_) => self.scroll_up()?,
-                    Direction::Down(_) => self.scroll_down()?,
+            EditorEvent::Scroll(s, c) => {
+                match s {
+                    Direction::Up(n) => self.scroll_up(n, &c)?,
+                    Direction::Down(n) => self.scroll_down(n, &c)?,
                     _ => {}
                 };
             }

@@ -82,13 +82,13 @@ pub fn key_builder() -> Mapper {
         )
         .insert_mapping(
             &Normal,
-            KeyEvent::new(KeyCode::Char('d'), KeyModifier::Control),
-            EditorEvent::Scroll(Direction::Down(2)),
+            KeyEvent::new(KeyCode::Char('e'), KeyModifier::Control),
+            EditorEvent::Scroll(Direction::Down(1), Direction::Up(1)),
         )
         .insert_mapping(
             &Normal,
-            KeyEvent::new(KeyCode::Char('u'), KeyModifier::Control),
-            EditorEvent::Scroll(Direction::Up(2)),
+            KeyEvent::new(KeyCode::Char('y'), KeyModifier::Control),
+            EditorEvent::Scroll(Direction::Up(1), Direction::Down(1)),
         )
         .insert_mapping(
             &Normal,

@@ -85,17 +85,21 @@ pub enum Direction {
 
 #[derive(Eq, PartialEq, Hash, Clone)]
 pub enum EditorEvent {
+    // Cursor Movement,
     Cursor(Direction),
-    Scroll(Direction),
+    // Scroll Take 2 Direction's (Scroll Direction, Cursor Direction)
+    Scroll(Direction, Direction),
+    // Change Modes,
     ModeNormal,
     ModeCommand,
     ModeInsert,
+    // Exit Program,
     Quit,
 }
 
 pub enum Event {
     Key(KeyEvent),
-    Mouse, //(MouseEvent),
+    Mouse, //(MouseEvent), TODO: This Needs to hold a Mouse Event
     Resize(u16, u16),
 }
 

@@ -5,7 +5,7 @@ pub fn string_to_vec(w: u16, string: &str) -> Vec<char> {
             let len = row_str.len();
             row_str
                 .chars()
-                .chain((len..w as usize).into_iter().map(|_| ' '))
+                .chain((len..w as usize).into_iter().map(|_| '&'))
         })
         .collect()
 }
