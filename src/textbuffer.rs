@@ -74,4 +74,8 @@ impl TextBuffer {
         let line_index = self.text.line_to_char(y as usize);
         self.text.insert_char(line_index + x as usize, chr);
     }
+
+    pub fn get_line(&mut self, y: u16) -> String {
+        self.text.line(y as usize).to_string()
+    }
 }

@@ -18,4 +18,3 @@ pub fn argparser() -> Option<String> {
         None => None,
     }
 }
-

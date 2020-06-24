@@ -1,20 +1,21 @@
 // ReVim Support Crates
 use crossdisplay::tui::{
     enter_raw_mode, exit_raw_mode, move_to, poll, read, render, terminal_size, Direction,
-    EditorEvent, Event, KeyEvent, KeyCode, Result,
+    EditorEvent, Event, KeyCode, KeyEvent, Result,
 };
 
 // ReVim Modules
-mod keymapper;
-mod support;
-mod screen;
 mod commandline;
+mod keymapper;
+mod screen;
+mod support;
 mod textbuffer;
+mod debuging;
 
-use support::usubtraction;
-use keymapper::{key_builder, Mapper, Mode};
-use screen::{string_to_vec, replace_from, insert_at};
 use commandline::argparser;
+use keymapper::{key_builder, Mapper, Mode};
+use screen::{insert_at, replace_from, string_to_vec};
+use support::usubtraction;
 use textbuffer::TextBuffer;
 
 // Standard Library Crates
@@ -68,10 +69,10 @@ pub struct ReVim {
 impl ReVim {
     fn new(filename: Option<String>) -> Self {
         let (w, h) = terminal_size().unwrap();
-        let mut window: Vec<char> = (0..w * h).map(|_| '#').collect();
+        let mut window: Vec<char> = (0..w * h).map(|_| ' ').collect();
         let filedata = TextBuffer::from_path(filename);
         let lines = filedata.line_to_line(0, h as usize);
-        let src = string_to_vec(w, &lines);
+        let src = string_to_vec(w as usize, h as usize, &lines);
         let mut queued: Vec<usize> = Vec::new();
         replace_from(0, w as usize, &mut window, &src, &mut queued);
         Self {
@@ -97,19 +98,19 @@ impl ReVim {
                 if self.cursor.loc_y < self.dim.0 {
                     self.cursor.loc_y += n;
                 }
-            },
+            }
             Direction::Down(n) => {
                 if self.cursor.loc_y > 0 {
                     self.cursor.loc_y -= n;
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         }
         move_to(&mut self.stdout, self.cursor.loc())?;
         let lines = self
             .filedata
             .line_to_line(self.view.0 as usize, self.view.1 as usize);
-        let src = string_to_vec(self.dim.0, &lines);
+        let src = string_to_vec(self.dim.0 as usize, self.dim.1 as usize, &lines);
         replace_from(
             0,
             self.dim.0 as usize,
@@ -130,19 +131,19 @@ impl ReVim {
                 if self.cursor.loc_y > 0 {
                     self.cursor.loc_y -= n;
                 }
-            },
+            }
             Direction::Down(n) => {
                 if self.cursor.loc_y < self.dim.1 {
                     self.cursor.loc_y += n;
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         }
         move_to(&mut self.stdout, self.cursor.loc())?;
         let lines = self
             .filedata
             .line_to_line(self.view.0 as usize, self.view.1 as usize);
-        let src = string_to_vec(self.dim.0, &lines);
+        let src = string_to_vec(self.dim.0 as usize, self.dim.1 as usize, &lines);
         replace_from(
             0,
             self.dim.0 as usize,
@@ -158,7 +159,7 @@ impl ReVim {
             let next_line_len =
                 usubtraction(self.filedata.line_len((self.cursor.glb_y + 1) as usize), 1);
             self.cursor.loc_x = std::cmp::min(self.cursor.loc_x, next_line_len as u16);
-            if self.cursor.glb_y < self.view.1 - 1{
+            if self.cursor.glb_y < self.view.1 - 1 {
                 self.cursor.loc_y += 1;
                 self.cursor.glb_y += 1;
                 move_to(&mut self.stdout, self.cursor.loc())?;
@@ -176,7 +177,7 @@ impl ReVim {
             let next_line_len =
                 usubtraction(self.filedata.line_len((self.cursor.glb_y - 1) as usize), 1);
             self.cursor.loc_x = std::cmp::min(self.cursor.loc_x, next_line_len as u16);
-            if self.cursor.glb_y > self.view.0{
+            if self.cursor.glb_y > self.view.0 {
                 self.cursor.loc_y -= 1;
                 self.cursor.glb_y -= 1;
                 move_to(&mut self.stdout, self.cursor.loc())?;
@@ -214,12 +215,14 @@ impl ReVim {
     }
 
     fn insert_char(&mut self, chr: char) -> Result<()> {
-        self.filedata.insert_char(self.cursor.glb_x, self.cursor.glb_y, chr);
+        self.filedata
+            .insert_char(self.cursor.glb_x, self.cursor.glb_y, chr);
         self.cursor.glb_x += 1;
         self.cursor.loc_x += 1;
         let width = self.dim.0 as usize;
-        let idx = width * (self.cursor.loc_y as usize) +(self.cursor.loc_x as usize) - 1;
-        insert_at(idx, width, &mut self.window, &mut self.queued, chr);
+        let idx = width * (self.cursor.loc_y as usize) + (self.cursor.loc_x as usize) - 1;
+        let line = self.filedata.get_line(self.cursor.glb_y);
+        insert_at(idx, width, &line, &mut self.window, &mut self.queued);
         move_to(&mut self.stdout, self.cursor.loc())?;
         Ok(())
     }
@@ -261,32 +264,39 @@ impl ReVim {
     }
 
     fn handle_modes(&mut self, key: KeyEvent) -> Result<()> {
-            match self.mode {
-                Mode::Insert => {
-                    match key.code {
-                        KeyCode::Char(chr) => self.insert_char(chr)?,
-                        //Enter => //self.window.insert_enter(),
-                        //Backspace => //self.window.backspace(),
-                        //Delete => //self.window.delete(),
-                        _ => {},
-                    };
-                },
-                Mode::Command => {
-                    /*
-                    match self.bar.handle_key(key) {
-                        ExResult::Aborted => self.set_mode(Mode::Normal),
-                        ExResult::StillEditing => {},
-                        ExResult::Finished(cmd) => {
-                            self.perform_ex_cmd(cmd);
-                            self.set_mode(Mode::Normal);
-                        },
-                    }
-                     */
-                },
-                _ => {}
+        match self.mode {
+            Mode::Insert => {
+                match key.code {
+                    KeyCode::Char(chr) => self.insert_char(chr)?,
+                    KeyCode::Enter => {
+                        self.filedata.insert_char(self.cursor.glb_x, self.cursor.glb_y, '\n');
+                        self.cursor.glb_y += 1;
+                        self.cursor.loc_y += 1;
+                        self.cursor.glb_x = 0;
+                        self.cursor.loc_x = 0;
+                        move_to(&mut self.stdout, self.cursor.loc())?;
+                    },
+                    //Backspace => //self.window.backspace(),
+                    //Delete => //self.window.delete(),
+                    _ => {}
+                };
             }
-            Ok(())
+            Mode::Command => {
+                /*
+                match self.bar.handle_key(key) {
+                    ExResult::Aborted => self.set_mode(Mode::Normal),
+                    ExResult::StillEditing => {},
+                    ExResult::Finished(cmd) => {
+                        self.perform_ex_cmd(cmd);
+                        self.set_mode(Mode::Normal);
+                    },
+                }
+                 */
+            }
+            _ => {}
         }
+        Ok(())
+    }
 
     fn mainloop(&mut self) -> Result<()> {
         enter_raw_mode(&mut self.stdout)?;
@@ -306,4 +316,3 @@ impl ReVim {
         Ok(())
     }
 }
-

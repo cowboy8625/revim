@@ -15,25 +15,7 @@ to ReVim submite a pull request.
 # Dependency's
     * crossterm = "0.14.2"
     * ropey = "1.1.0"
+    * clap = "2.33.1"
 
-# TODO List
-
-- [x] Welcome Message
-- [ ] Status Bar
-    - [x] Modes
-    - [ ] File Type
-    - [ ] File Name
-    - [ ] Curser Location
-- [ ] Modes
-    - [x] Normal Mode
-    - [x] Command Mode
-    - [x] Insert Mode
-    - [ ] Search Mode
-- [ ] FileIO
-    - [x] Load File
-    - [x] Save File
-    - [ ] Open Full File
-- [ ] Show `~` at a empty line
-- [ ] Scrolling
-- [ ] Syntax HighLighing
-
+If you want to [compair](:https://github.com/cowboy8625/ReVim/wiki/Comparisons) ReVim current state
+with other popular editors.
