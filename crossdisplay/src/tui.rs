@@ -43,7 +43,7 @@ pub fn terminal_size() -> Result<(u16, u16)> {
 pub fn render(
     stdout: &mut Stdout,
     width: &u16,
-    grid: &Vec<char>,
+    grid: &[char],
     queued: &Vec<usize>,
 ) -> Result<()> {
     let mut slice: String;
