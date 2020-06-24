@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 
-pub fn debug_to_file(message: std::fmt::Arguments) {
+pub fn _debug_to_file(message: std::fmt::Arguments) {
     // Create a path to the desired file
     let path = Path::new("log.txt");
     let display = path.display();

@@ -1,4 +1,3 @@
-use crate::debuging::debug_to_file;
 use crate::usubtraction;
 
 pub fn string_to_vec(w: usize, h: usize, string: &str) -> Vec<char> {
