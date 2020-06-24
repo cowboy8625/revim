@@ -40,12 +40,7 @@ pub fn terminal_size() -> Result<(u16, u16)> {
     Ok(crossterm::terminal::size()?)
 }
 
-pub fn render(
-    stdout: &mut Stdout,
-    width: &u16,
-    grid: &[char],
-    queued: &[usize],
-) -> Result<()> {
+pub fn render(stdout: &mut Stdout, width: &u16, grid: &[char], queued: &[usize]) -> Result<()> {
     let mut slice: String;
     queue!(
         stdout,
@@ -53,9 +48,7 @@ pub fn render(
         crossterm::cursor::SavePosition
     )?;
     for line_num in queued {
-        slice = grid[*line_num..*width as usize + line_num]
-            .iter()
-            .collect();
+        slice = grid[*line_num..*width as usize + line_num].iter().collect();
         queue!(
             stdout,
             crossterm::cursor::MoveTo(0, *line_num as u16 / width),

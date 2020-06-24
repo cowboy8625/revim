@@ -10,9 +10,7 @@ pub fn string_to_vec(w: usize, h: usize, string: &str) -> Vec<char> {
         .flat_map(|row_str| {
             let len = row_str.len();
             let new_row = &row_str[..std::cmp::min(w as usize, len)];
-            new_row
-                .chars()
-                .chain((len..w as usize).map(|_| ' '))
+            new_row.chars().chain((len..w as usize).map(|_| ' '))
         })
         .collect();
     let len = s.len();
