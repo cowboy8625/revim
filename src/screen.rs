@@ -1,5 +1,5 @@
-use crate::usubtraction;
 use crate::debuging::debug_to_file;
+use crate::usubtraction;
 
 pub fn string_to_vec(w: usize, h: usize, string: &str) -> Vec<char> {
     let mut string: String = string.chars().map(|c| c).collect();
@@ -55,13 +55,10 @@ mod tests {
     fn test_string_to_vec_over_filled() {
         let width = 5;
         let height = 5;
-        let string = string_to_vec(
-            width,
-            height,
-            "123\n123\n1\n",
-        );
+        let string = string_to_vec(width, height, "123\n123\n1\n");
         let true_output = vec![
-            '1', '2', '3', ' ', ' ', '1', '2', '3', ' ', ' ', '1', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '
+            '1', '2', '3', ' ', ' ', '1', '2', '3', ' ', ' ', '1', ' ', ' ', ' ', ' ', ' ', ' ',
+            ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
         ];
         assert_eq!(string, true_output);
     }
@@ -72,7 +69,8 @@ mod tests {
         let height = 5;
         let string = string_to_vec(width, height, "");
         let true_output = vec![
-            ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '
+            ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+            ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
         ];
         assert_eq!(string, true_output);
     }
@@ -83,10 +81,9 @@ mod tests {
         let height = 5;
         let string = string_to_vec(width, height, "123");
         let true_output = vec![
-            '1', '2', '3', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '
+            '1', '2', '3', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+            ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
         ];
         assert_eq!(string, true_output);
     }
-
-
 }

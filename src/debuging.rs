@@ -17,10 +17,10 @@ pub fn debug_to_file(message: std::fmt::Arguments) {
 
             match file.write_fmt(format_args!("couldn't open {}: {}", display, why)) {
                 Err(why) => panic!("couldn't create {}: {}", display, why),
-                Ok(_) => {},
+                Ok(_) => {}
             };
             file
-        },
+        }
 
         Ok(file) => file,
     };

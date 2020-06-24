@@ -6,11 +6,11 @@ use crossdisplay::tui::{
 
 // ReVim Modules
 mod commandline;
+mod debuging;
 mod keymapper;
 mod screen;
 mod support;
 mod textbuffer;
-mod debuging;
 
 use commandline::argparser;
 use keymapper::{key_builder, Mapper, Mode};
@@ -269,13 +269,14 @@ impl ReVim {
                 match key.code {
                     KeyCode::Char(chr) => self.insert_char(chr)?,
                     KeyCode::Enter => {
-                        self.filedata.insert_char(self.cursor.glb_x, self.cursor.glb_y, '\n');
+                        self.filedata
+                            .insert_char(self.cursor.glb_x, self.cursor.glb_y, '\n');
                         self.cursor.glb_y += 1;
                         self.cursor.loc_y += 1;
                         self.cursor.glb_x = 0;
                         self.cursor.loc_x = 0;
                         move_to(&mut self.stdout, self.cursor.loc())?;
-                    },
+                    }
                     //Backspace => //self.window.backspace(),
                     //Delete => //self.window.delete(),
                     _ => {}
