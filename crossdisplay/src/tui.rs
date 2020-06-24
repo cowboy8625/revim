@@ -40,12 +40,7 @@ pub fn terminal_size() -> Result<(u16, u16)> {
     Ok(crossterm::terminal::size()?)
 }
 
-pub fn render(
-    stdout: &mut Stdout,
-    width: &u16,
-    grid: &[char],
-    queued: &Vec<usize>,
-) -> Result<()> {
+pub fn render(stdout: &mut Stdout, width: &u16, grid: &[char], queued: &Vec<usize>) -> Result<()> {
     let mut slice: String;
     queue!(
         stdout,
