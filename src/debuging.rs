@@ -15,10 +15,9 @@ pub fn _debug_to_file(message: std::fmt::Arguments) {
                 Ok(file) => file,
             };
 
-            match file.write_fmt(format_args!("couldn't open {}: {}", display, why)) {
-                Err(why) => panic!("couldn't create {}: {}", display, why),
-                Ok(_) => {}
-            };
+            if let Err(why) = file.write_fmt(format_args!("couldn't open {}: {}", display, why)) {
+                panic!("couldn't create {}: {}", display, why);
+            }
             file
         }
 

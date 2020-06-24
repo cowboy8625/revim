@@ -12,7 +12,7 @@ pub fn string_to_vec(w: usize, h: usize, string: &str) -> Vec<char> {
             let new_row = &row_str[..std::cmp::min(w as usize, len)];
             new_row
                 .chars()
-                .chain((len..w as usize).into_iter().map(|_| ' '))
+                .chain((len..w as usize).map(|_| ' '))
         })
         .collect();
     let len = s.len();
@@ -25,7 +25,7 @@ pub fn replace_from(
     idx: usize,
     w: usize,
     dst: &mut Vec<char>,
-    src: &Vec<char>,
+    src: &[char],
     queued: &mut Vec<usize>,
 ) {
     let dst_end = std::cmp::min(dst.len(), src.len() + idx);

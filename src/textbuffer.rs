@@ -53,7 +53,7 @@ impl TextBuffer {
         let e = self.text.len_lines();
         let end = if end > e { e } else { end };
         let mut lines = String::new();
-        (start..=end - 1).for_each(|idx| {
+        (start..end).for_each(|idx| {
             lines.extend(self.text.line(idx).chars().filter(|&c| c != '\n'));
             lines.push_str("\r\n");
         });
