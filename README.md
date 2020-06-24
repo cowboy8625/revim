@@ -17,5 +17,5 @@ to ReVim submite a pull request.
     * ropey = "1.1.0"
     * clap = "2.33.1"
 
-If you want to [compair](:https://github.com/cowboy8625/ReVim/wiki/Comparisons) ReVim current state
+If you want to [compair][https://github.com/cowboy8625/ReVim/wiki/Comparisons] ReVim current state
 with other popular editors.
