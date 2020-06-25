@@ -78,4 +78,11 @@ impl TextBuffer {
     pub fn get_line(&mut self, y: u16) -> String {
         self.text.line(y as usize).to_string()
     }
+
+    pub fn remove<R>(&mut self, char_range: R)
+    where
+        R: std::ops::RangeBounds<usize>,
+    {
+        self.text.remove(char_range);
+    }
 }

@@ -1,5 +1,7 @@
 .gitignore
 /target
+/tags
+*.vim
 **/*.rs.bk
 *.sh
 *.txt

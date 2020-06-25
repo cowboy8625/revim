@@ -14,7 +14,7 @@ mod textbuffer;
 
 use commandline::argparser;
 use keymapper::{key_builder, Mapper, Mode};
-use screen::{insert_at, replace_from, string_to_vec};
+use screen::{screen_update_line, screen_update_line_down, screen_update};
 use support::usubtraction;
 use textbuffer::TextBuffer;
 
@@ -72,9 +72,8 @@ impl ReVim {
         let mut window: Vec<char> = (0..w * h).map(|_| ' ').collect();
         let filedata = TextBuffer::from_path(filename);
         let lines = filedata.line_to_line(0, h as usize);
-        let src = string_to_vec(w as usize, h as usize, &lines);
         let mut queued: Vec<usize> = Vec::new();
-        replace_from(0, w as usize, &mut window, &src, &mut queued);
+        screen_update(w as usize, h as usize, &lines, &mut window, &mut queued);
         Self {
             stdout: stdout(),
             cursor: Cursor::new(),
@@ -110,14 +109,9 @@ impl ReVim {
         let lines = self
             .filedata
             .line_to_line(self.view.0 as usize, self.view.1 as usize);
-        let src = string_to_vec(self.dim.0 as usize, self.dim.1 as usize, &lines);
-        replace_from(
-            0,
-            self.dim.0 as usize,
-            &mut self.window,
-            &src,
-            &mut self.queued,
-        );
+        let w = self.dim.0 as usize;
+        let h = self.dim.1 as usize;
+        screen_update(w, h, &lines, &mut self.window, &mut self.queued);
         Ok(())
     }
 
@@ -143,14 +137,9 @@ impl ReVim {
         let lines = self
             .filedata
             .line_to_line(self.view.0 as usize, self.view.1 as usize);
-        let src = string_to_vec(self.dim.0 as usize, self.dim.1 as usize, &lines);
-        replace_from(
-            0,
-            self.dim.0 as usize,
-            &mut self.window,
-            &src,
-            &mut self.queued,
-        );
+        let w = self.dim.0 as usize;
+        let h = self.dim.1 as usize;
+        screen_update(w, h, &lines, &mut self.window, &mut self.queued);
         Ok(())
     }
 
@@ -215,14 +204,46 @@ impl ReVim {
     }
 
     fn insert_char(&mut self, chr: char) -> Result<()> {
+        // Take new character and places in file then pulls out
+        // updated line to be printed on screen
         self.filedata
             .insert_char(self.cursor.glb_x, self.cursor.glb_y, chr);
         self.cursor.glb_x += 1;
         self.cursor.loc_x += 1;
         let width = self.dim.0 as usize;
-        let idx = width * (self.cursor.loc_y as usize) + (self.cursor.loc_x as usize) - 1;
         let line = self.filedata.get_line(self.cursor.glb_y);
-        insert_at(idx, width, &line, &mut self.window, &mut self.queued);
+        let line_num = self.cursor.loc_y as usize;
+        screen_update_line(line_num, width, &line, &mut self.window, &mut self.queued);
+        move_to(&mut self.stdout, self.cursor.loc())?;
+        Ok(())
+    }
+
+    fn new_line(&mut self) -> Result<()> {
+        // Update from cursor down.
+        self.filedata
+            .insert_char(self.cursor.glb_x, self.cursor.glb_y, '\n');
+        self.cursor.glb_y += 1;
+        self.cursor.loc_y += 1;
+        self.cursor.glb_x = 0;
+        self.cursor.loc_x = 0;
+        move_to(&mut self.stdout, self.cursor.loc())?;
+        let text = self.filedata.line_to_line((self.cursor.glb_y as usize) - 1, self.dim.1 as usize);
+        let width = self.dim.0 as usize;
+        let line_idx = self.cursor.loc_y as usize;
+        screen_update_line_down(
+            line_idx - 1,
+            width,
+            &text,
+            &mut self.window,
+            &mut self.queued
+        );
+        Ok(())
+    }
+
+    fn backspace(&mut self) -> Result<()> {
+        // Backspace goes <- on screen screen and up a line
+        // if the line cursor is on is at length cursor will
+        // move up a line.
         move_to(&mut self.stdout, self.cursor.loc())?;
         Ok(())
     }
@@ -268,16 +289,8 @@ impl ReVim {
             Mode::Insert => {
                 match key.code {
                     KeyCode::Char(chr) => self.insert_char(chr)?,
-                    KeyCode::Enter => {
-                        self.filedata
-                            .insert_char(self.cursor.glb_x, self.cursor.glb_y, '\n');
-                        self.cursor.glb_y += 1;
-                        self.cursor.loc_y += 1;
-                        self.cursor.glb_x = 0;
-                        self.cursor.loc_x = 0;
-                        move_to(&mut self.stdout, self.cursor.loc())?;
-                    }
-                    //Backspace => //self.window.backspace(),
+                    KeyCode::Enter => self.new_line()?,
+                    KeyCode::Backspace => self.backspace()?,
                     //Delete => //self.window.delete(),
                     _ => {}
                 };
