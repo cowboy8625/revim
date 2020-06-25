@@ -14,7 +14,7 @@ mod textbuffer;
 
 use commandline::argparser;
 use keymapper::{key_builder, Mapper, Mode};
-use screen::{screen_update_line, screen_update_line_down, screen_update};
+use screen::{screen_update, screen_update_line, screen_update_line_down};
 use support::usubtraction;
 use textbuffer::TextBuffer;
 
@@ -50,6 +50,10 @@ impl Cursor {
 
     fn loc(&self) -> (u16, u16) {
         (self.loc_x, self.loc_y)
+    }
+
+    fn index(&self, width: u16) -> usize {
+        (self.glb_y * width + self.glb_x) as usize
     }
 }
 
@@ -227,7 +231,9 @@ impl ReVim {
         self.cursor.glb_x = 0;
         self.cursor.loc_x = 0;
         move_to(&mut self.stdout, self.cursor.loc())?;
-        let text = self.filedata.line_to_line((self.cursor.glb_y as usize) - 1, self.dim.1 as usize);
+        let text = self
+            .filedata
+            .line_to_line((self.cursor.glb_y as usize) - 1, self.dim.1 as usize);
         let width = self.dim.0 as usize;
         let line_idx = self.cursor.loc_y as usize;
         screen_update_line_down(
@@ -235,7 +241,7 @@ impl ReVim {
             width,
             &text,
             &mut self.window,
-            &mut self.queued
+            &mut self.queued,
         );
         Ok(())
     }
@@ -244,6 +250,8 @@ impl ReVim {
         // Backspace goes <- on screen screen and up a line
         // if the line cursor is on is at length cursor will
         // move up a line.
+        let idx = self.cursor.index(self.dim.0);
+        self.filedata.remove(idx..idx + 1);
         move_to(&mut self.stdout, self.cursor.loc())?;
         Ok(())
     }

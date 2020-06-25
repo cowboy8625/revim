@@ -20,13 +20,7 @@ fn string_to_vec(w: usize, h: usize, string: &str) -> Vec<char> {
     s.chars().collect()
 }
 
-fn replace_from(
-    idx: usize,
-    w: usize,
-    dst: &mut Vec<char>,
-    src: &[char],
-    queued: &mut Vec<usize>,
-) {
+fn replace_from(idx: usize, w: usize, dst: &mut Vec<char>, src: &[char], queued: &mut Vec<usize>) {
     let dst_end = std::cmp::min(dst.len(), src.len() + idx);
     let src_end = std::cmp::min(dst_end - idx, src.len());
     dst[idx..dst_end].copy_from_slice(&src[..src_end]);
@@ -46,36 +40,30 @@ fn _insert_at(idx: usize, w: usize, line: &str, dst: &mut Vec<char>, queued: &mu
     replace_from(start, w, dst, &src, queued);
 }
 
-pub fn screen_update(
-    w: usize,
-    h: usize,
-    text: &str,
-    dst: &mut Vec<char>,
-    queued: &mut Vec<usize>,
-) {
+pub fn screen_update(w: usize, h: usize, text: &str, dst: &mut Vec<char>, queued: &mut Vec<usize>) {
     let src = string_to_vec(w, h, text);
     replace_from(0, w, dst, &src[..], queued);
 }
 
 pub fn screen_update_line(
-    line_num: usize,        // Screen y value
-    w: usize,               // Width of Screen
-    text: &str,             // Line form Text file
-    dst: &mut Vec<char>,    // Screen Array
-    queued: &mut Vec<usize> // Index line numbers queued for updating on Screen
+    line_num: usize,         // Screen y value
+    w: usize,                // Width of Screen
+    text: &str,              // Line form Text file
+    dst: &mut Vec<char>,     // Screen Array
+    queued: &mut Vec<usize>, // Index line numbers queued for updating on Screen
 ) {
     // Takes data to update screen.
     let mut src: Vec<char> = text.chars().collect();
     src.extend((0..usubtraction(w, src.len())).map(|_| ' '));
-    dst[line_num*w..line_num*w+w].copy_from_slice(&src[..w]);
-    queued.push(line_num*w);
+    dst[line_num * w..line_num * w + w].copy_from_slice(&src[..w]);
+    queued.push(line_num * w);
 }
 
 pub fn _screen_update_lines(
     w: usize,                  // Width of Screen
     lines: Vec<(usize, &str)>, // Lines contain line loc and text form file
     dst: &mut Vec<char>,       // Screen Array
-    queued: &mut Vec<usize>    // Index line numbers queued for updating on Screen
+    queued: &mut Vec<usize>,   // Index line numbers queued for updating on Screen
 ) {
     for (line_num, line) in &lines {
         screen_update_line(*line_num, w, &line, dst, queued);
@@ -83,17 +71,16 @@ pub fn _screen_update_lines(
 }
 
 pub fn screen_update_line_down(
-    line_num: usize,            // Cursor y value
-    w: usize,                   // Width of Screen
-    text: &str,                 // Lines form Text file
-    dst: &mut Vec<char>,        // Screen Array
-    queued: &mut Vec<usize>     // Index line numbers queued for updating on Screen
+    line_num: usize,         // Cursor y value
+    w: usize,                // Width of Screen
+    text: &str,              // Lines form Text file
+    dst: &mut Vec<char>,     // Screen Array
+    queued: &mut Vec<usize>, // Index line numbers queued for updating on Screen
 ) {
     for (idx, line) in text.lines().enumerate() {
         screen_update_line(idx + line_num, w, &line, dst, queued);
     }
 }
-
 
 #[cfg(test)]
 mod tests {
