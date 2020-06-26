@@ -1,5 +1,8 @@
 // textbuffer.rs holds all rope data and logic.
-//
+
+//ReVim imports
+use crate::Cursor;
+
 // External Crates
 use ropey::Rope;
 
@@ -79,10 +82,25 @@ impl TextBuffer {
         self.text.line(y as usize).to_string()
     }
 
-    pub fn remove<R>(&mut self, char_range: R)
+    pub fn _remove<R>(&mut self, char_range: R)
     where
         R: std::ops::RangeBounds<usize>,
     {
         self.text.remove(char_range);
+    }
+
+    pub fn remove_char(&mut self, cursor: &Cursor) {
+        let idx = self.text.line_to_char(cursor.glb_y as usize) + cursor.glb_x as usize;
+        self.text.remove(idx - 1..idx);
+    }
+
+    pub fn combined_lines(&mut self, top: usize, bottom: usize) {
+        let start_idx = self.text.line_to_char(top);
+        let end_idx = self.text.line_to_char(bottom);
+        let slice = self.text.slice(start_idx..end_idx).to_string();
+        self.text.remove(start_idx..end_idx);
+        let crap: &[_] = &['\r', '\n'];
+        let text = slice.trim_matches(crap);
+        self.text.insert(start_idx, text);
     }
 }

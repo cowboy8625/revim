@@ -52,7 +52,9 @@ pub fn screen_update_line(
     dst: &mut Vec<char>,     // Screen Array
     queued: &mut Vec<usize>, // Index line numbers queued for updating on Screen
 ) {
-    // Takes data to update screen.
+    // Takes data to update screen
+    let items: &[_] = &['\r', '\n'];
+    let text = text.trim_matches(items);
     let mut src: Vec<char> = text.chars().collect();
     src.extend((0..usubtraction(w, src.len())).map(|_| ' '));
     dst[line_num * w..line_num * w + w].copy_from_slice(&src[..w]);

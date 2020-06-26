@@ -6,7 +6,6 @@ use crossdisplay::tui::{
 
 // ReVim Modules
 mod commandline;
-mod debuging;
 mod keymapper;
 mod screen;
 mod support;
@@ -29,12 +28,12 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-struct Cursor {
-    loc_x: u16, // x on Screen.
-    loc_y: u16, // y on Screen.
-    glb_x: u16, // x in text file.
-    glb_y: u16, // y in text file.
-    max_x: u16, // the max x value used last.
+pub struct Cursor {
+    pub loc_x: u16, // x on Screen.
+    pub loc_y: u16, // y on Screen.
+    pub glb_x: u16, // x in text file.
+    pub glb_y: u16, // y in text file.
+    pub max_x: u16, // the max x value used last.
 }
 
 impl Cursor {
@@ -48,12 +47,8 @@ impl Cursor {
         }
     }
 
-    fn loc(&self) -> (u16, u16) {
+    pub fn loc(&self) -> (u16, u16) {
         (self.loc_x, self.loc_y)
-    }
-
-    fn index(&self, width: u16) -> usize {
-        (self.glb_y * width + self.glb_x) as usize
     }
 }
 
@@ -250,8 +245,29 @@ impl ReVim {
         // Backspace goes <- on screen screen and up a line
         // if the line cursor is on is at length cursor will
         // move up a line.
-        let idx = self.cursor.index(self.dim.0);
-        self.filedata.remove(idx..idx + 1);
+        let width = self.dim.0 as usize;
+        if self.cursor.glb_x == 0 {
+            /* Handles combineding current line and above line */
+            let current = self.cursor.glb_y as usize;
+            let above = usubtraction(self.cursor.glb_y, 1) as usize;
+            let line_len = self.filedata.line_len(above) as u16;
+            self.filedata.combined_lines(above, current);
+            let lines = self.filedata.line_to_line(above, self.view.1 as usize);
+            self.cursor.glb_x = line_len;
+            self.cursor.loc_x = line_len;
+            self.cursor.max_x = std::cmp::max(self.cursor.max_x, line_len);
+            screen_update_line_down(above, width, &lines, &mut self.window, &mut self.queued);
+            self.cursor.glb_y -= 1;
+            self.cursor.loc_y -= 1;
+        } else {
+            /* Handles deleteing char on a line */
+            self.filedata.remove_char(&self.cursor);
+            let line_idx = self.cursor.loc_y as usize;
+            let line = self.filedata.get_line(self.cursor.glb_y);
+            screen_update_line(line_idx, width, &line, &mut self.window, &mut self.queued);
+            self.cursor.glb_x -= 1;
+            self.cursor.loc_x -= 1;
+        }
         move_to(&mut self.stdout, self.cursor.loc())?;
         Ok(())
     }
