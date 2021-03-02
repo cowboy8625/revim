@@ -1,9 +1,9 @@
 // External Crates
-use clap::{App, Arg};
+use clap::{App, Arg, crate_version};
 
 pub fn argparser() -> Option<String> {
     let matches = App::new("ReVim")
-        .version("0.0.1")
+        .version(crate_version!())
         .author("Cowboy8625 <cowboy8625@protonmail.com>")
         .about("Cross Platform Small Simple Terminal Text Editor Written In Rust")
         .arg(Arg::with_name("in_file").index(1))

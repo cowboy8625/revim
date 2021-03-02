@@ -1,12 +1,6 @@
-// textbuffer.rs holds all rope data and logic.
+/* textbuffer.rs */
 
-//ReVim imports
-use crate::Cursor;
-
-// External Crates
 use ropey::Rope;
-
-// Standerd Library Crates
 use std::fs::{metadata, OpenOptions};
 use std::io::BufReader;
 
@@ -73,14 +67,14 @@ impl TextBuffer {
         self.path.as_deref().unwrap_or("No Path").to_owned()
     }
 
-    pub fn insert_char(&mut self, x: u16, y: u16, chr: char) {
-        let line_index = self.text.line_to_char(y as usize);
-        self.text.insert_char(line_index + x as usize, chr);
-    }
+    // pub fn insert_char(&mut self, x: u16, y: u16, chr: char) {
+    //     let line_index = self.text.line_to_char(y as usize);
+    //     self.text.insert_char(line_index + x as usize, chr);
+    // }
 
-    pub fn get_line(&mut self, y: u16) -> String {
-        self.text.line(y as usize).to_string()
-    }
+    // pub fn get_line(&mut self, y: u16) -> String {
+    //     self.text.line(y as usize).to_string()
+    // }
 
     pub fn _remove<R>(&mut self, char_range: R)
     where
@@ -89,18 +83,18 @@ impl TextBuffer {
         self.text.remove(char_range);
     }
 
-    pub fn remove_char(&mut self, cursor: &Cursor) {
-        let idx = self.text.line_to_char(cursor.glb_y as usize) + cursor.glb_x as usize;
-        self.text.remove(idx - 1..idx);
-    }
+    // pub fn remove_char(&mut self, cursor: &Cursor) {
+    //     let idx = self.text.line_to_char(cursor.glb_y as usize) + cursor.glb_x as usize;
+    //     self.text.remove(idx - 1..idx);
+    // }
 
-    pub fn combined_lines(&mut self, top: usize, bottom: usize) {
-        let start_idx = self.text.line_to_char(top);
-        let end_idx = self.text.line_to_char(bottom);
-        let slice = self.text.slice(start_idx..end_idx).to_string();
-        self.text.remove(start_idx..end_idx);
-        let crap: &[_] = &['\r', '\n'];
-        let text = slice.trim_matches(crap);
-        self.text.insert(start_idx, text);
-    }
+    // pub fn combined_lines(&mut self, top: usize, bottom: usize) {
+    //     let start_idx = self.text.line_to_char(top);
+    //     let end_idx = self.text.line_to_char(bottom);
+    //     let slice = self.text.slice(start_idx..end_idx).to_string();
+    //     self.text.remove(start_idx..end_idx);
+    //     let crap: &[_] = &['\r', '\n'];
+    //     let text = slice.trim_matches(crap);
+    //     self.text.insert(start_idx, text);
+    // }
 }

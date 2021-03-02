@@ -6,5 +6,6 @@
 *.sh
 *.txt
 *.py
+*.lock
 testdisplay.py
 wikichat.md
