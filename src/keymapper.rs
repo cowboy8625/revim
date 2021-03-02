@@ -47,16 +47,26 @@ impl Mapper {
         self.get_map_mut(mode).insert(key, event);
         self
     }
+
+    pub fn insert_mapping_chain(mut self, mode: &Mode, keys: &str, modifier: KeyModifiers) -> Self {
+        for c in keys.chars() {
+            self.get_map_mut(mode).insert(KeyEvent::new(KeyCode::Char(c), modifier), Box::new(move |editor| editor.command.push(c)));
+        }
+        self
+    }
 }
 
 pub fn key_builder() -> Mapper {
     use Mode::*;
     Mapper::new()
-        .insert_mapping(
-            &Normal,
-            KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
-            Box::new(|editor| editor.is_running = false)
-        )
+
+        /* Normal Mode */
+
+        // .insert_mapping(
+        //     &Normal,
+        //     KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+        //     Box::new(|editor| editor.is_running = false)
+        // )
         .insert_mapping(
             &Normal,
             KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE),
@@ -65,13 +75,19 @@ pub fn key_builder() -> Mapper {
                 // line is sorter then what cursor is currently on
                 // before moving down to next line.
                 editor.cursor.1 = (editor.cursor.1 + 1)
-                    .min((editor.screen.0 + editor.screen.1) as u16);
+                    .min((std::cmp::min(editor.screen.bottom(), usub(editor.rope.len_lines(), 2))) as u16);
+                editor.cursor.0 = editor.cursor.0
+                    .min(usub(editor.rope.line(editor.cursor.1 as usize).chars().len() as u16,  2));
             })
         )
         .insert_mapping(
             &Normal,
             KeyEvent::new(KeyCode::Char('k'), KeyModifiers::NONE),
-            Box::new(|editor| editor.cursor.1 = usub(editor.cursor.1, 1))
+            Box::new(|editor| {
+                editor.cursor.1 = usub(editor.cursor.1, 1);
+                editor.cursor.0 = editor.cursor.0
+                    .min(usub(editor.rope.line(editor.cursor.1 as usize).chars().len() as u16,  2));
+            })
         )
         .insert_mapping(
             &Normal,
@@ -86,34 +102,63 @@ pub fn key_builder() -> Mapper {
                     .min(usub(editor.rope.line(editor.cursor.1 as usize).chars().len() as u16,  2));
             })
         )
-        // .insert_mapping(
-        //     &Normal,
-        //     KeyEvent::new(KeyCode::Char('e'), KeyModifier::Control),
-        //     EditorEvent::Scroll(Direction::Down(1), Direction::Up(1)),
-        // )
-        // .insert_mapping(
-        //     &Normal,
-        //     KeyEvent::new(KeyCode::Char('y'), KeyModifier::Control),
-        //     EditorEvent::Scroll(Direction::Up(1), Direction::Down(1)),
-        // )
-        // .insert_mapping(
-        //     &Normal,
-        //     KeyEvent::new(KeyCode::Char(':'), KeyModifier::NONE),
-        //     EditorEvent::ModeCommand,
-        // )
-        // .insert_mapping(
-        //     &Command,
-        //     KeyEvent::new(KeyCode::Esc, KeyModifier::NONE),
-        //     EditorEvent::ModeNormal,
-        // )
+        .insert_mapping(
+            &Normal,
+            KeyEvent::new(KeyCode::Char(':'), KeyModifiers::NONE),
+            Box::new(|editor| {
+                editor.mode = Command;
+                editor.command.clear();
+            })
+        )
+
+        /* Command Mode */
+
+        .insert_mapping(
+            &Command,
+            KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+            Box::new(|editor| editor.mode = Normal)
+        )
+        .insert_mapping(
+            &Command,
+            KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+            Box::new(|editor| {
+                editor.mode = Normal;
+                editor.command = vec![" "; editor.screen.max_w].into_iter().collect();
+            })
+        )
+        .insert_mapping_chain(
+            &Command,
+            ('a'..='z').collect::<String>().as_str(),
+            KeyModifiers::NONE,
+        )
+        .insert_mapping_chain(
+            &Command,
+            ('a'..='z').collect::<String>().as_str(),
+            KeyModifiers::SHIFT,
+        )
+        .insert_mapping(
+            &Command,
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+            Box::new(|editor: &mut Editor| {
+                match editor.command.as_str() {
+                "q" => editor.is_running = false,
+                _ => {}
+                }
+                editor.mode = Mode::Normal;
+                editor.command = vec![" "; editor.screen.max_w].into_iter().collect();
+            })
+        )
+
+        /* Insert Mode */
+
+        .insert_mapping(
+            &Insert,
+            KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+            Box::new(|editor| editor.mode = Normal)
+        )
         // .insert_mapping(
         //     &Normal,
         //     KeyEvent::new(KeyCode::Char('i'), KeyModifier::NONE),
         //     EditorEvent::ModeInsert,
-        // )
-        // .insert_mapping(
-        //     &Insert,
-        //     KeyEvent::new(KeyCode::Esc, KeyModifier::NONE),
-        //     EditorEvent::ModeNormal,
         // )
 }

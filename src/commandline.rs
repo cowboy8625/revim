@@ -1,3 +1,7 @@
+use std::fs::{metadata, OpenOptions};
+use std::io::BufReader;
+use crate::Rope;
+
 // External Crates
 use clap::{App, Arg, crate_version};
 
@@ -17,4 +21,23 @@ pub fn argparser() -> Option<String> {
         Some(v) => Some(v.to_string()),
         None => None,
     }
+}
+
+// wrapper around Rope for a drity flag.
+pub fn from_path(path: Option<String>) -> (Rope, Option<String>) {
+    let text = path
+        .as_ref()
+        .filter(|path| metadata(&path).is_ok())
+        .map_or_else(Rope::new, |path| {
+            let file = OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .open(path)
+                .expect("Problem opening the file");
+
+            Rope::from_reader(BufReader::new(file)).unwrap()
+        });
+
+    ( text, path )
 }
