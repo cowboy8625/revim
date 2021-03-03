@@ -40,7 +40,7 @@ impl ScreenVector {
 pub(crate) fn screen_size() -> ScreenVector {
     let (w, h) = crossterm::terminal::size()
         .expect("Your screen size is messed up and I will fix it later");
-    ScreenVector::new(0, 0, w as usize, h as usize)
+    ScreenVector::new(0, 0, w as usize, (h - 2) as usize)
 }
 
 pub(crate) fn render_enter_alt_screen(w: &mut Stdout) {
@@ -87,16 +87,24 @@ fn render_command_bar(w: &mut Stdout, editor: &Editor) {
     if let Mode::Command = editor.mode {
         queue!(
             w,
-            cursor::MoveTo(0, 2 + editor.screen.bottom() as u16),
+            cursor::MoveTo(0, 1 + editor.screen.bottom() as u16),
             style::Print(&format!(":{}", editor.command.as_str())),
-        ).expect("some crap went wrong, Fix you shit!");
+        ).expect("Command Bar Error 1");
     } else {
         queue!(
             w,
-            cursor::MoveTo(0, 2 + editor.screen.bottom() as u16),
+            cursor::MoveTo(0, 1 + editor.screen.bottom() as u16),
             style::Print(&format!("{}", editor.command.as_str())),
-        ).expect("some crap went wrong, Fix you shit!");
+        ).expect("Command Bar Error 2");
     }
+}
+
+fn render_status_bar(w: &mut Stdout, editor: &Editor) {
+        queue!(
+            w,
+            cursor::MoveTo(0, editor.screen.bottom() as u16),
+            style::Print(&format!("{}", editor.mode)),
+        ).expect("Status Bar Error");
 }
 
 pub(crate) fn render(w: &mut Stdout, editor: &Editor) {
@@ -106,7 +114,7 @@ pub(crate) fn render(w: &mut Stdout, editor: &Editor) {
     ).expect("Error while trying to hide cursor.");
 
     render_text(w, editor);
-    // render_status_bar(w, &editor);
+    render_status_bar(w, &editor);
     render_command_bar(w, &editor);
     // render_line_numbers(&mut writer, &editor);
 

@@ -156,13 +156,23 @@ pub fn key_builder() -> Mapper {
         /* Insert Mode */
 
         .insert_mapping(
+            &Normal,
+            KeyEvent::new(KeyCode::Char('i'), KeyModifiers::NONE),
+            Box::new(|editor| editor.mode = Mode::Insert),
+        )
+        .insert_mapping(
             &Insert,
             KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
             Box::new(|editor| editor.mode = Normal)
         )
-        // .insert_mapping(
-        //     &Normal,
-        //     KeyEvent::new(KeyCode::Char('i'), KeyModifier::NONE),
-        //     EditorEvent::ModeInsert,
-        // )
+        .insert_mapping_chain(
+            &Insert,
+            ('a'..='z').collect::<String>().as_str(),
+            KeyModifiers::NONE,
+        )
+        .insert_mapping_chain(
+            &Insert,
+            ('a'..='z').collect::<String>().as_str(),
+            KeyModifiers::SHIFT,
+        )
 }

@@ -25,6 +25,13 @@ fn main() -> crossterm::Result<()> {
     while editor.is_running {
         if event::poll(std::time::Duration::from_micros(200))? {
             if let event::Event::Key(key) = event::read()? {
+                if let Mode::Command = &editor.mode {
+                    if let crossterm::event::KeyEvent{code: crossterm::event::KeyCode::Char(c), ..} = key {
+                        editor.rope.insert_char(
+                    }
+                }
+                if let Mode::Insert = &editor.mode {
+                }
                 if let Some(handle) = key_map.get_mapping(&editor.mode, &key) {
                     handle(&mut editor);
                 }
