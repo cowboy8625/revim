@@ -62,11 +62,11 @@ pub fn key_builder() -> Mapper {
 
         /* Normal Mode */
 
-        // .insert_mapping(
-        //     &Normal,
-        //     KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
-        //     Box::new(|editor| editor.is_running = false)
-        // )
+        .insert_mapping(
+            &Normal,
+            KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+            Box::new(|editor| editor.is_running = false)
+        )
         .insert_mapping(
             &Normal,
             KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE),
@@ -104,7 +104,11 @@ pub fn key_builder() -> Mapper {
         )
         .insert_mapping(
             &Normal,
-            KeyEvent::new(KeyCode::Char(':'), KeyModifiers::NONE),
+            if cfg!(windows) {
+            KeyEvent::new(KeyCode::Char(':'), KeyModifiers::SHIFT)
+            } else {
+            KeyEvent::new(KeyCode::Char(':'), KeyModifiers::NONE)
+            },
             Box::new(|editor| {
                 editor.mode = Command;
                 editor.command.clear();
