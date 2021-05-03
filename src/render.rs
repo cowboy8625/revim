@@ -1,6 +1,6 @@
+use crate::{Editor, Mode};
+use crossterm::{cursor, queue, style, terminal};
 use std::io::{Stdout, Write};
-use crossterm::{queue, cursor, terminal, style};
-use crate::{Mode, Editor};
 
 #[derive(Debug)]
 pub struct ScreenVector {
@@ -12,16 +12,13 @@ pub struct ScreenVector {
 
 impl ScreenVector {
     pub fn new(x: usize, y: usize, max_w: usize, max_h: usize) -> Self {
-        Self {
-            x, y, max_w, max_h
-        }
+        Self { x, y, max_w, max_h }
     }
 
     pub fn _origin(&self) -> (usize, usize) {
         (self.x, self.y)
     }
-
-    pub fn _right(&self) -> usize {
+pub fn _right(&self) -> usize {
         self.x + self.max_w
     }
 
@@ -38,49 +35,46 @@ impl ScreenVector {
     }
 }
 pub(crate) fn screen_size() -> ScreenVector {
-    let (w, h) = crossterm::terminal::size()
-        .expect("Your screen size is messed up and I will fix it later");
+    let (w, h) =
+        crossterm::terminal::size().expect("Your screen size is messed up and I will fix it later");
     ScreenVector::new(0, 0, w as usize, (h - 2) as usize)
 }
 
 pub(crate) fn render_enter_alt_screen(w: &mut Stdout) {
     terminal::enable_raw_mode().expect("Exit raw mode bad thing happened");
-    queue!(
-        w,
-        terminal::EnterAlternateScreen,
-    ).expect("something went wrong in render_enter_alt_screen");
+    queue!(w, terminal::EnterAlternateScreen,)
+        .expect("something went wrong in render_enter_alt_screen");
 }
 
 pub(crate) fn render_exit_alt_screen(w: &mut Stdout) {
     terminal::disable_raw_mode().expect("Exit raw mode bad thing happened");
-    queue!(
-        w,
-        terminal::LeaveAlternateScreen,
-    ).expect("something went wrong in render_exit_alt_screen");
+    queue!(w, terminal::LeaveAlternateScreen,)
+        .expect("something went wrong in render_exit_alt_screen");
 }
 
-pub(crate) fn render_clear(w: &mut Stdout) {
-    queue!(
-        w,
-        terminal::Clear(terminal::ClearType::All),
-    ).expect("something went wrong in render_clear");
+pub(crate) fn _render_clear(w: &mut Stdout) {
+    queue!(w, terminal::Clear(terminal::ClearType::All),)
+        .expect("something went wrong in render_clear");
 }
 
 fn render_text(w: &mut Stdout, editor: &Editor) {
     let screen = &editor.screen;
+    let mut text = String::new();
 
-    'outer: for (y, line) in editor.rope.lines_at(screen.x).enumerate() {
-        for (x, chr) in line.chars().enumerate() {
-            if y == screen.bottom() - 1{ break 'outer; }
-            queue!(
-                w,
-                cursor::MoveTo(x as u16, y as u16),
-                terminal::DisableLineWrap,
-                style::Print(chr),
-            ).expect("Something went wrong while displaying file text.");
-        }
+    for (line_num, line) in editor.rope.lines_at(screen.x).enumerate() {
+        if line_num == screen.max_h {break;}
+        text.push_str(line.as_str().unwrap_or("\n"))
     }
 
+    format_text(&mut text, editor.screen.max_w, screen.max_h);
+
+    queue!(
+        w,
+        cursor::MoveTo(0, 0),
+        terminal::DisableLineWrap,
+        style::Print(text),
+    )
+    .expect("Something went wrong while displaying file text.");
 }
 
 fn render_command_bar(w: &mut Stdout, editor: &Editor) {
@@ -89,29 +83,29 @@ fn render_command_bar(w: &mut Stdout, editor: &Editor) {
             w,
             cursor::MoveTo(0, 1 + editor.screen.bottom() as u16),
             style::Print(&format!(":{}", editor.command.as_str())),
-        ).expect("Command Bar Error 1");
+        )
+        .expect("Command Bar Error 1");
     } else {
         queue!(
             w,
             cursor::MoveTo(0, 1 + editor.screen.bottom() as u16),
             style::Print(&format!("{}", editor.command.as_str())),
-        ).expect("Command Bar Error 2");
+        )
+        .expect("Command Bar Error 2");
     }
 }
 
 fn render_status_bar(w: &mut Stdout, editor: &Editor) {
-        queue!(
-            w,
-            cursor::MoveTo(0, editor.screen.bottom() as u16),
-            style::Print(&format!("{}", editor.mode)),
-        ).expect("Status Bar Error");
+    queue!(
+        w,
+        cursor::MoveTo(0, editor.screen.bottom() as u16),
+        style::Print(&format!("{}", editor.mode)),
+    )
+    .expect("Status Bar Error");
 }
 
 pub(crate) fn render(w: &mut Stdout, editor: &Editor) {
-    queue!(
-        w,
-        cursor::Hide,
-    ).expect("Error while trying to hide cursor.");
+    queue!(w, cursor::Hide,).expect("Error while trying to hide cursor.");
 
     render_text(w, editor);
     render_status_bar(w, &editor);
@@ -122,6 +116,40 @@ pub(crate) fn render(w: &mut Stdout, editor: &Editor) {
         w,
         cursor::MoveTo(editor.cursor.0, editor.cursor.1),
         cursor::Show,
-    ).expect("Error while trying to show cursor.");
+    )
+    .expect("Error while trying to show cursor.");
     w.flush().expect("Flush Is BROKEN");
 }
+
+fn format_text(text: &mut String, width: usize, height: usize) {
+    let filler = ' ';
+    let mut new = String::new();
+    for (y, line) in text.lines().enumerate() {
+        let spaces = width.saturating_sub(line.len());
+        let blanks = vec![filler; spaces].iter().collect::<String>();
+        new.push_str(&line[..line.len().min(width)]);
+        new.push_str(&blanks);
+        new.push_str("\r\n");
+        if y == height - 1 { break; }
+    }
+    for _ in 0..((height - 1).saturating_sub(new.count('\n'))) {
+        new.push_str(&vec![filler; width].iter().collect::<String>());
+        new.push_str("\r\n");
+    }
+    *text = new;
+}
+
+trait StringCount {
+    fn count(&self, chr: char) -> usize;
+}
+
+impl StringCount for String {
+    fn count(&self, chr: char) -> usize {
+        let mut counter = 0;
+        for c in self.chars() {
+            if c == chr { counter += 1; }
+        }
+        counter
+    }
+}
+

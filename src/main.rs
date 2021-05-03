@@ -1,37 +1,30 @@
-mod editor;
 mod commandline;
-mod render;
+mod editor;
 mod keymapper;
+mod render;
 mod util;
 
-use render::*;
 use commandline::{argparser, from_path};
-use keymapper::*;
-use util::usub;
 use editor::{Editor, Mode};
+use keymapper::*;
+use render::*;
+use util::usub;
 
-use ropey::Rope;
 use crossterm::event;
+use ropey::Rope;
 
 fn main() -> crossterm::Result<()> {
     let mut writer = std::io::stdout();
     let file_path = argparser();
-    let (rope, _path) = from_path(file_path);
-    let mut editor = Editor::new(rope);
+    let (rope, path) = from_path(file_path);
+    let mut editor = Editor::new(rope, path);
     let key_map = key_builder();
     render_enter_alt_screen(&mut writer);
-    render_clear(&mut writer);
     render(&mut writer, &editor);
     while editor.is_running {
-        if event::poll(std::time::Duration::from_micros(200))? {
-            if let event::Event::Key(key) = event::read()? {
-                if let Mode::Command = &editor.mode {
-                    if let crossterm::event::KeyEvent{code: crossterm::event::KeyCode::Char(c), ..} = key {
-                        editor.rope.insert_char(
-                    }
-                }
-                if let Mode::Insert = &editor.mode {
-                }
+        if event::poll(std::time::Duration::from_millis(50))? {
+            let event = event::read()?;
+            if let event::Event::Key(key) = event {
                 if let Some(handle) = key_map.get_mapping(&editor.mode, &key) {
                     handle(&mut editor);
                 }

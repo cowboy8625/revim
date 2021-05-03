@@ -1,9 +1,9 @@
+use crate::Rope;
 use std::fs::{metadata, OpenOptions};
 use std::io::BufReader;
-use crate::Rope;
 
 // External Crates
-use clap::{App, Arg, crate_version};
+use clap::{crate_version, App, Arg};
 
 pub fn argparser() -> Option<String> {
     let matches = App::new("ReVim")
@@ -39,5 +39,5 @@ pub fn from_path(path: Option<String>) -> (Rope, Option<String>) {
             Rope::from_reader(BufReader::new(file)).unwrap()
         });
 
-    ( text, path )
+    (text, path)
 }
