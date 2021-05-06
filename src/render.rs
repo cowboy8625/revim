@@ -4,34 +4,34 @@ use std::io::{Stdout, Write};
 
 #[derive(Debug)]
 pub struct ScreenVector {
-    pub x: usize,
-    pub y: usize,
+    pub t: usize,
+    pub b: usize,
     pub max_w: usize,
     pub max_h: usize,
 }
 
 impl ScreenVector {
-    pub fn new(x: usize, y: usize, max_w: usize, max_h: usize) -> Self {
-        Self { x, y, max_w, max_h }
+    pub fn new(t: usize, b: usize, max_w: usize, max_h: usize) -> Self {
+        Self { t, b, max_w, max_h }
     }
 
     pub fn _origin(&self) -> (usize, usize) {
-        (self.x, self.y)
+        (self.t, self.b)
     }
 pub fn _right(&self) -> usize {
-        self.x + self.max_w
+        self.t + self.max_w
     }
 
     pub fn _left(&self) -> usize {
-        self.x
+        self.t
     }
 
     pub fn _top(&self) -> usize {
-        self.y
+        self.b
     }
 
     pub fn bottom(&self) -> usize {
-        self.y + self.max_h
+        self.b + self.max_h
     }
 }
 pub(crate) fn screen_size() -> ScreenVector {
@@ -61,7 +61,7 @@ fn render_text(w: &mut Stdout, editor: &Editor) {
     let screen = &editor.screen;
     let mut text = String::new();
 
-    for (line_num, line) in editor.rope.lines_at(screen.x).enumerate() {
+    for (line_num, line) in editor.rope.lines_at(screen.t).enumerate() {
         if line_num == screen.max_h {break;}
         text.push_str(line.as_str().unwrap_or("\n"))
     }
@@ -99,7 +99,7 @@ fn render_status_bar(w: &mut Stdout, editor: &Editor) {
     queue!(
         w,
         cursor::MoveTo(0, editor.screen.bottom() as u16),
-        style::Print(&format!("{}", editor.mode)),
+        style::Print(&format!("{}     {} {}               ", editor.mode, editor.cursor, editor.cursor.max_x)),
     )
     .expect("Status Bar Error");
 }
@@ -114,7 +114,7 @@ pub(crate) fn render(w: &mut Stdout, editor: &Editor) {
 
     queue!(
         w,
-        cursor::MoveTo(editor.cursor.0, editor.cursor.1),
+        cursor::MoveTo(editor.cursor.x, editor.cursor.y),
         cursor::Show,
     )
     .expect("Error while trying to show cursor.");
@@ -127,24 +127,24 @@ fn format_text(text: &mut String, width: usize, height: usize) {
     for (y, line) in text.lines().enumerate() {
         let spaces = width.saturating_sub(line.len());
         let blanks = vec![filler; spaces].iter().collect::<String>();
-        new.push_str(&line[..line.len().min(width)]);
+        new.push_str(&line[..line.len().min(width)].replace("\t", "    "));
         new.push_str(&blanks);
         new.push_str("\r\n");
         if y == height - 1 { break; }
     }
-    for _ in 0..((height - 1).saturating_sub(new.count('\n'))) {
+    for _ in 0..((height - 1).saturating_sub(new.count_char('\n'))) {
         new.push_str(&vec![filler; width].iter().collect::<String>());
         new.push_str("\r\n");
     }
     *text = new;
 }
 
-trait StringCount {
-    fn count(&self, chr: char) -> usize;
+pub trait StringCount {
+    fn count_char(&self, chr: char) -> usize;
 }
 
 impl StringCount for String {
-    fn count(&self, chr: char) -> usize {
+    fn count_char(&self, chr: char) -> usize {
         let mut counter = 0;
         for c in self.chars() {
             if c == chr { counter += 1; }

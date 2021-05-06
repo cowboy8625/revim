@@ -1,5 +1,4 @@
-// use crossdisplay::tui::{Direction, EditorEvent, KeyCode, KeyEvent, KeyModifier};
-use crate::{usub, Editor, Mode};
+use crate::{Editor, Mode, usub, render::StringCount};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use std::collections::HashMap;
 
@@ -110,27 +109,17 @@ pub fn key_builder() -> Mapper {
             &Normal,
             KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE),
             Box::new(|editor| {
-                // TODO (1):
-                // Make cursor move to end of line when moving down if
-                // line is sorter then what cursor is currently on
-                // before moving down to next line.
-                // TODO (2):
-                // Scrolling.
-                if editor.cursor.1 == editor.screen.max_h as u16 {
-                    editor.screen.x = (editor.screen.x + 1).min(
-                        std::cmp::max(editor.screen.bottom(), usub(editor.rope.len_lines(), 2))
-                        )
-                } else {
-                    editor.cursor.1 = (editor.cursor.1 + 1).min(
-                        // MAYBE: Fix This.
+                if editor.cursor.y != editor.screen.max_h as u16 {
+                    // This is for moving cursor
+                    editor.cursor.y = (editor.cursor.y + 1).min(
                         (std::cmp::min(editor.screen.bottom(), editor.rope.len_lines().saturating_sub(2)))
-                            as u16,
-                    );
+                            as u16);
+                } else {
+                    // This is for scrolling
+                    editor.screen.t = (editor.screen.t + 1).min(
+                        std::cmp::max(editor.screen.bottom(), editor.rope.len_lines().saturating_sub(2)))
                 }
-                editor.cursor.0 = editor.cursor.0.min(usub(
-                    editor.rope.line(editor.cursor.1 as usize + editor.screen.y).chars().len() as u16,
-                    2,
-                ));
+                editor.cursor.x = std::cmp::min(end_of_line_without_new_line(&editor), editor.cursor.max_x);
             }),
         )
         // Cursor Up
@@ -138,42 +127,32 @@ pub fn key_builder() -> Mapper {
             &Normal,
             KeyEvent::new(KeyCode::Char('k'), KeyModifiers::NONE),
             Box::new(|editor| {
-                // TODO (1):
-                // Make cursor move to end of line when moving down if
-                // line is sorter then what cursor is currently on
-                // before moving down to next line.
-                // TODO (2):
-                // Scrolling.
-                if editor.cursor.1 == 0 as u16 {
-                    editor.screen.x = editor.screen.x.saturating_sub(1);
+                if editor.cursor.y != 0 {
+                    // This is for moving cursor
+                    editor.cursor.y = editor.cursor.y.saturating_sub(1);
                 } else {
-                    editor.cursor.1 = (editor.cursor.1 - 1).max(0);
+                    // This is for scrolling
+                    editor.screen.t = editor.screen.t.saturating_sub(1);
                 }
-                editor.cursor.0 = editor.cursor.0.min(usub(
-                    editor.rope.line(editor.cursor.1 as usize + editor.screen.y).chars().len() as u16,
-                    2,
-                ));
-            // Box::new(|editor| {
-            //     editor.cursor.1 = usub(editor.cursor.1, 1);
-            //     editor.cursor.0 = editor.cursor.0.min(usub(
-            //         editor.rope.line(editor.cursor.1 as usize).chars().len() as u16,
-            //         2,
-            //     ));
+                editor.cursor.x = std::cmp::min(end_of_line_without_new_line(&editor), editor.cursor.max_x);
             }),
         )
+        // Cursor Left
         .insert_mapping(
             &Normal,
             KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE),
-            Box::new(|editor| editor.cursor.0 = usub(editor.cursor.0, 1)),
+            Box::new(|editor| {
+                editor.cursor.x = editor.cursor.x.saturating_sub(1);
+                editor.cursor.max_x = std::cmp::min(editor.cursor.x, editor.cursor.max_x);
+            }),
         )
+        // Cursor Right
         .insert_mapping(
             &Normal,
             KeyEvent::new(KeyCode::Char('l'), KeyModifiers::NONE),
             Box::new(|editor| {
-                editor.cursor.0 = (editor.cursor.0 + 1).min(usub(
-                    editor.rope.line(editor.cursor.1 as usize).chars().len() as u16,
-                    2,
-                ));
+                editor.cursor.x = editor.cursor.x.saturating_add(1).min(end_of_line_without_new_line(&editor));
+                editor.cursor.max_x = std::cmp::max(editor.cursor.x, editor.cursor.max_x);
             }),
         )
         .insert_mapping(
@@ -228,10 +207,7 @@ pub fn key_builder() -> Mapper {
             &Insert,
             KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE),
             Box::new(|editor| {
-                insert_char_to_rope(editor, ' ');
-                insert_char_to_rope(editor, ' ');
-                insert_char_to_rope(editor, ' ');
-                insert_char_to_rope(editor, ' ');
+                insert_str_to_rope(editor, "    ");
             }),
         )
         .insert_mapping(
@@ -244,8 +220,8 @@ pub fn key_builder() -> Mapper {
             KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
             Box::new(|editor| {
                 insert_char_to_rope(editor, '\n');
-                editor.cursor.0 = 0;
-                editor.cursor.1 += 1;
+                editor.cursor.x = 0;
+                editor.cursor.y += 1;
             }),
         )
         .insert_mapping(
@@ -259,28 +235,69 @@ pub fn key_builder() -> Mapper {
             &Insert,
             KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE),
             Box::new(|editor| {
-                if editor.cursor == (0, 0) {
+                if editor.cursor.x == 0 && editor.cursor.y == 0 {
                     return;
                 }
 
-                let line_index = editor.rope.line_to_char(editor.cursor.1 as usize);
-                let index = (line_index as u16 + editor.cursor.0 - 1) as usize;
+                let line_index = editor.rope.line_to_char(editor.cursor.y as usize);
+                let index = (line_index as u16 + editor.cursor.x - 1) as usize;
                 editor.rope.remove(index..index + 1);
 
                 let new_line = editor.rope.char_to_line(index);
-                if new_line != editor.cursor.1 as usize {
-                    editor.cursor.1 -= usub(editor.cursor.1, 1);
+                if new_line != editor.cursor.y as usize {
+                    editor.cursor.y -= usub(editor.cursor.y, 1);
                 }
-                editor.cursor.0 = (index - editor.rope.line_to_char(new_line)) as u16;
+                editor.cursor.x = (index - editor.rope.line_to_char(new_line)) as u16;
             }),
         )
         .key_adder(&Insert)
 }
 
 fn insert_char_to_rope(editor: &mut Editor, c: char) {
-    let line_index = editor.rope.line_to_char(editor.cursor.1 as usize);
+    let line_index = editor.rope.line_to_char(editor.cursor.y as usize);
     editor
         .rope
-        .insert_char(line_index + editor.cursor.0 as usize, c);
-    editor.cursor.0 += 1;
+        .insert_char(line_index + editor.cursor.x as usize, c);
+    editor.cursor.x += 1;
+}
+
+fn insert_str_to_rope(editor: &mut Editor, s: &str) {
+    for c in s.chars() {
+        insert_char_to_rope(editor, c);
+    }
+}
+
+fn end_of_line_without_new_line(editor: &Editor) -> u16 {
+    let line = editor
+        .rope
+        .line(editor.cursor.y as usize)
+        .as_str()
+        .unwrap_or("\n")
+        .trim();
+    let len = line.len().saturating_sub(1);
+    let tabs = line.to_string().count_char('\t') * 3;
+    (len + tabs) as u16
+
+}
+
+#[test]
+fn test_line_len_rope() {
+    use crate::commandline;
+    let (rope, s) = commandline::from_path(Some("./KJV.txt".to_string()));
+    assert_eq!(s, Some("./KJV.txt".to_string()));
+    let v = rope.line(0).as_str().unwrap_or("\n").trim().chars().collect::<Vec<char>>();
+    assert_eq!(v.len(), 66);
+}
+
+#[test]
+fn test_line_end_on_rope() {
+    use crate::commandline;
+    let (rope, s) = commandline::from_path(Some("./KJV.txt".to_string()));
+    assert_eq!(s, Some("./KJV.txt".to_string()));
+    let v = rope.line(0).as_str().unwrap_or("\n").chars().collect::<Vec<char>>();
+    eprintln!("len of line: {}", v.len());
+    eprintln!("{:?}", v);
+    assert_eq!(v[v.len() - 3], '.');
+    assert_eq!(v[v.len() - 2], '\r');
+    assert_eq!(v[v.len() - 1], '\n');
 }

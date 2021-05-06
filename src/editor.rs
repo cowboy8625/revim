@@ -1,6 +1,6 @@
 use crate::{screen_size, ScreenVector};
 use ropey::Rope;
-use std::fmt;
+use std::fmt::{self, Display};
 
 #[derive(Debug)]
 pub enum Mode {
@@ -27,7 +27,7 @@ pub struct Editor {
     pub screen: ScreenVector,
     pub is_running: bool,
     pub mode: Mode,
-    pub cursor: (u16, u16),
+    pub cursor: Cursor,
     pub command: String,
 }
 
@@ -39,8 +39,33 @@ impl Editor {
             screen: screen_size(),
             is_running: true,
             mode: Mode::Normal,
-            cursor: (0, 0),
+            cursor: Cursor::default(),
             command: String::new(),
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct Cursor {
+    pub x: u16,
+    pub y: u16,
+    pub max_x: u16,
+    pub max_y: u16,
+}
+
+impl Default for Cursor {
+    fn default() -> Self {
+        Self {
+            x: 0,
+            y: 0,
+            max_x: 0,
+            max_y: 0,
+        }
+    }
+}
+
+impl Display for Cursor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}, {})", self.x, self.y)
     }
 }
