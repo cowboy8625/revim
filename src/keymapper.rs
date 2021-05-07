@@ -1,4 +1,4 @@
-use crate::{Editor, Mode, usub, render::StringCount};
+use crate::{Editor, editor::EditorError, Mode, usub, render::StringCount};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use std::collections::HashMap;
 
@@ -93,13 +93,11 @@ impl Mapper {
                 KeyModifiers::NONE,
             )
     }
-}
 
-pub fn key_builder() -> Mapper {
-    use Mode::*;
-    Mapper::new()
+    fn build_normal(self) -> Self {
+        use Mode::*;
         /* Normal Mode */
-        .insert_mapping(
+        self.insert_mapping(
             &Normal,
             KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
             Box::new(|editor| editor.is_running = false),
@@ -109,17 +107,22 @@ pub fn key_builder() -> Mapper {
             &Normal,
             KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE),
             Box::new(|editor| {
-                if editor.cursor.y != editor.screen.max_h as u16 {
+                if editor.cursor.y != editor.screen.max_h.saturating_sub(1) as u16 {
                     // This is for moving cursor
                     editor.cursor.y = (editor.cursor.y + 1).min(
                         (std::cmp::min(editor.screen.bottom(), editor.rope.len_lines().saturating_sub(2)))
                             as u16);
+
+                    editor.cursor.gy = (editor.cursor.gy + 1).min(editor.rope.len_lines().saturating_sub(2) as u16);
                 } else {
                     // This is for scrolling
                     editor.screen.t = (editor.screen.t + 1).min(
-                        std::cmp::max(editor.screen.bottom(), editor.rope.len_lines().saturating_sub(2)))
+                        std::cmp::max(editor.screen.bottom(), editor.rope.len_lines().saturating_sub(2)));
+
+                    editor.cursor.gy = (editor.cursor.gy + 1).min(editor.rope.len_lines().saturating_sub(2) as u16);
                 }
                 editor.cursor.x = std::cmp::min(end_of_line_without_new_line(&editor), editor.cursor.max_x);
+                editor.cursor.gx = std::cmp::min(end_of_line_without_new_line(&editor), editor.cursor.max_x);
             }),
         )
         // Cursor Up
@@ -130,11 +133,14 @@ pub fn key_builder() -> Mapper {
                 if editor.cursor.y != 0 {
                     // This is for moving cursor
                     editor.cursor.y = editor.cursor.y.saturating_sub(1);
+                    editor.cursor.gy = editor.cursor.gy.saturating_sub(1);
                 } else {
                     // This is for scrolling
                     editor.screen.t = editor.screen.t.saturating_sub(1);
+                    editor.cursor.gy = editor.cursor.gy.saturating_sub(1);
                 }
                 editor.cursor.x = std::cmp::min(end_of_line_without_new_line(&editor), editor.cursor.max_x);
+                editor.cursor.gx = std::cmp::min(end_of_line_without_new_line(&editor), editor.cursor.max_x);
             }),
         )
         // Cursor Left
@@ -143,7 +149,8 @@ pub fn key_builder() -> Mapper {
             KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE),
             Box::new(|editor| {
                 editor.cursor.x = editor.cursor.x.saturating_sub(1);
-                editor.cursor.max_x = std::cmp::min(editor.cursor.x, editor.cursor.max_x);
+                editor.cursor.gx = editor.cursor.gx.saturating_sub(1);
+                editor.cursor.max_x = std::cmp::min(editor.cursor.gx, editor.cursor.max_x);
             }),
         )
         // Cursor Right
@@ -152,6 +159,7 @@ pub fn key_builder() -> Mapper {
             KeyEvent::new(KeyCode::Char('l'), KeyModifiers::NONE),
             Box::new(|editor| {
                 editor.cursor.x = editor.cursor.x.saturating_add(1).min(end_of_line_without_new_line(&editor));
+                editor.cursor.gx = editor.cursor.gx.saturating_add(1).min(end_of_line_without_new_line(&editor));
                 editor.cursor.max_x = std::cmp::max(editor.cursor.x, editor.cursor.max_x);
             }),
         )
@@ -165,40 +173,16 @@ pub fn key_builder() -> Mapper {
             Box::new(|editor| {
                 editor.mode = Command;
                 editor.command.clear();
+                editor.error = EditorError::NONE;
+                editor.output = String::new();
             }),
         )
-        /* Command Mode */
-        .insert_mapping(
-            &Command,
-            KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
-            Box::new(|editor| editor.mode = Normal),
-        )
-        .insert_mapping(
-            &Command,
-            KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
-            Box::new(|editor| {
-                editor.mode = Normal;
-                editor.command = vec![" "; editor.screen.max_w].into_iter().collect();
-            }),
-        )
-        .key_adder(&Command)
-        .insert_mapping(
-            &Command,
-            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
-            Box::new(|editor: &mut Editor| {
-                match editor.command.as_str() {
-                    "q" => editor.is_running = false,
-                    "w" => editor.rope.write_to(
-                        std::io::BufWriter::new(
-                            std::fs::File::create(editor.file_path.clone().unwrap()).expect("File Did Not save!"))).expect("Rope Did not save"),
-                    _ => {}
-                }
-                editor.mode = Mode::Normal;
-                editor.command = vec![" "; editor.screen.max_w].into_iter().collect();
-            }),
-        )
+    }
+
+    fn build_insert(self) -> Self {
+        use Mode::*;
         /* Insert Mode */
-        .insert_mapping(
+        self.insert_mapping(
             &Normal,
             KeyEvent::new(KeyCode::Char('i'), KeyModifiers::NONE),
             Box::new(|editor| editor.mode = Mode::Insert),
@@ -251,6 +235,61 @@ pub fn key_builder() -> Mapper {
             }),
         )
         .key_adder(&Insert)
+    }
+
+    fn build_command(self) -> Self {
+        use Mode::*;
+        /* Command Mode */
+        self.insert_mapping(
+            &Command,
+            KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+            Box::new(|editor| editor.mode = Normal),
+        )
+        .insert_mapping(
+            &Command,
+            KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+            Box::new(|editor| {
+                editor.mode = Normal;
+                editor.command = vec![" "; editor.screen.max_w].into_iter().collect();
+            }),
+        )
+        .insert_mapping(
+            &Command,
+            KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE),
+            Box::new(|editor| {
+                let _ = editor.command.pop();
+            })
+        )
+        .key_adder(&Command)
+        .insert_mapping(
+            &Command,
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+            Box::new(|editor: &mut Editor| {
+                match editor.command.as_str() {
+                    "q" => editor.is_running = false,
+                    "w" => {
+                            editor.rope.write_to(
+                            std::io::BufWriter::new(
+                                std::fs::File::create(editor.file_path.clone().unwrap()).expect("File Did Not save!"))).expect("Rope Did not save");
+                            editor.error = EditorError::NONE;
+                        }
+                    "lenline" => editor.output = end_of_line_without_new_line(&editor).to_string(),
+                    "height" => editor.output = editor.screen.max_h.to_string(),
+                    "line" => editor.output = editor.rope.line(editor.cursor.gy as usize).chars().collect::<String>().trim_end().to_string(),
+                    c => editor.error = EditorError::InvalidCommand(c.to_string()),
+                }
+                editor.mode = Mode::Normal;
+                editor.command = String::new();// vec![" "; editor.screen.max_w].into_iter().collect();
+            }),
+        )
+    }
+}
+
+pub fn key_builder() -> Mapper {
+    Mapper::new()
+        .build_normal()
+        .build_insert()
+        .build_command()
 }
 
 fn insert_char_to_rope(editor: &mut Editor, c: char) {
@@ -267,15 +306,16 @@ fn insert_str_to_rope(editor: &mut Editor, s: &str) {
     }
 }
 
-fn end_of_line_without_new_line(editor: &Editor) -> u16 {
+pub(crate) fn end_of_line_without_new_line(editor: &Editor) -> u16 {
     let line = editor
         .rope
-        .line(editor.cursor.y as usize)
-        .as_str()
-        .unwrap_or("\n")
-        .trim();
+        .line(editor.cursor.gy as usize)
+        .chars()
+        .collect::<String>()
+        .trim_end()
+        .to_string();
     let len = line.len().saturating_sub(1);
-    let tabs = line.to_string().count_char('\t') * 3;
+    let tabs = line.count_char('\t') * 3;
     (len + tabs) as u16
 
 }
@@ -300,4 +340,14 @@ fn test_line_end_on_rope() {
     assert_eq!(v[v.len() - 3], '.');
     assert_eq!(v[v.len() - 2], '\r');
     assert_eq!(v[v.len() - 1], '\n');
+}
+
+#[test]
+fn test_line_len_rope_keymapper() {
+    use crate::commandline;
+    let (rope, s) = commandline::from_path(Some("./src/keymapper.rs".to_string()));
+    assert_eq!(s, Some("./src/keymapper.rs".to_string()));
+    let v = rope.line(8).as_str().unwrap_or("\n").trim().chars().collect::<Vec<char>>();
+    println!("{}", v.iter().collect::<String>());
+    assert_eq!(v.len(), 13);
 }

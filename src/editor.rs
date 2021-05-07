@@ -2,7 +2,7 @@ use crate::{screen_size, ScreenVector};
 use ropey::Rope;
 use std::fmt::{self, Display};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Mode {
     Insert,
     Normal,
@@ -29,6 +29,8 @@ pub struct Editor {
     pub mode: Mode,
     pub cursor: Cursor,
     pub command: String,
+    pub output: String,
+    pub error: EditorError,
 }
 
 impl Editor {
@@ -41,6 +43,8 @@ impl Editor {
             mode: Mode::Normal,
             cursor: Cursor::default(),
             command: String::new(),
+            output: String::new(),
+            error: EditorError::NONE,
         }
     }
 }
@@ -49,6 +53,8 @@ impl Editor {
 pub struct Cursor {
     pub x: u16,
     pub y: u16,
+    pub gx: u16,
+    pub gy: u16,
     pub max_x: u16,
     pub max_y: u16,
 }
@@ -58,6 +64,8 @@ impl Default for Cursor {
         Self {
             x: 0,
             y: 0,
+            gx: 0,
+            gy: 0,
             max_x: 0,
             max_y: 0,
         }
@@ -66,6 +74,23 @@ impl Default for Cursor {
 
 impl Display for Cursor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({}, {})", self.x, self.y)
+        write!(f, "{}/{}", self.gx, self.gy)
     }
 }
+
+#[derive(Debug)]
+pub enum EditorError {
+    InvalidCommand(String),
+    NONE,
+}
+
+impl Display for EditorError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidCommand(c) => write!(f, "Invalid Command: {}", c),
+            Self::NONE => write!(f, ""),
+        }
+    }
+}
+
+
