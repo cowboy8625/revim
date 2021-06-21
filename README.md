@@ -14,7 +14,7 @@ making ReVim.   I wanted it to have:
  - **Package Manager** Unlike Vim or NeoVim I would have like to a built in package manager just to say I have made one.
  - **WebSite** If there is a **Package Manager** then it would need a **WebSite** to just go look for and upload user made plugins.
 I am not giving up mind you, I am only letting you know I move the project to a new repo.
-### [ReVi](https://github.com/cowboy8625/revi)
+### [ReVi](https://github.com/revi-editor/revi)
 
 #### Why?
 
